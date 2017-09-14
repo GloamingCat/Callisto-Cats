@@ -12,6 +12,10 @@ Callisto Cats is a prototype of an adventure and exploration 3D game about bubbl
 * Purple apples give more life points; 
 * Stars give more mana points.
 
+<p align="center">
+  <img src="https://github.com/GloamingCat/Callisto-Cats/blob/master/screenshots/stage.png?raw=true" width="700"/>
+</p>
+
 ## Installation
 
 To install the project, you will need Unity 3D engine. Just open the "source" folder in the editor as a Unity project.

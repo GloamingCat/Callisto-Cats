@@ -9,8 +9,9 @@ Callisto Cats is a prototype of an adventure and exploration 3D game about bubbl
 * Press X to jump;
 * Press C to roll;
 * Press Q and E rotate the camera;
-* Purple apples give more life points; 
-* Stars give more mana points.
+* Purple apples give more life points;
+* Stars give more mana points;
+* Don't touch the evil purple cats.
 
 <p align="center">
   <img src="https://github.com/GloamingCat/Callisto-Cats/blob/master/screenshots/stage.png?raw=true" width="700"/>
@@ -19,6 +20,7 @@ Callisto Cats is a prototype of an adventure and exploration 3D game about bubbl
 ## Installation
 
 To install the project, you will need Unity 3D engine. Just open the "source" folder in the editor as a Unity project.
+To play the game without opening the project, access https://gloamingcat.github.io/Play-Callisto-Cats/.
 
 ## License
 

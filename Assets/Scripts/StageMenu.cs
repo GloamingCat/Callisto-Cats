@@ -1,6 +1,7 @@
 ﻿using UnityEngine;
 using UnityEngine.UI;
 using System.Collections;
+using UnityEngine.SceneManagement;
 
 public class StageMenu : MonoBehaviour {
 
@@ -50,10 +51,10 @@ public class StageMenu : MonoBehaviour {
 		manaText.text = "Mana: " + value;
 	}
 
-	public void RestartScene() {
+	public void Restart() {
 		Time.timeScale = 1;
-		//string sceneName = UnityEngine.SceneManagement.SceneManager.
-		UnityEngine.SceneManagement.SceneManager.LoadScene (Application.loadedLevel);
+		Destroy(StageManager.instance.gameObject);
+		SceneManager.LoadScene(0);
 	}
 
 }

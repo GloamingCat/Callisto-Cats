@@ -1,32 +1,30 @@
 using UnityEngine;
 using System.Collections;
 
-public class Player : Character {
+public class Player : MonoBehaviour {
 
-	public static Player instance;
-	public int maxLifePoints = 30;
-
+	private Character character;
+	
 	// Fire
 	public int maxManaPoints = 20;
 	public int manaPoints;
 	public GameObject hadouken;
 
-	// Big Jump
-	public float bigJumpSpeed;
-	public bool bigJumping;
-	float bigJumpDelay = 0.01f;
+	// Roll
+	public AudioClip rollSound;
+	public AudioClip jumpSound;
+	public AudioClip damageSound;
+	public AudioClip spitSound;
 
-	public bool rolling = false;
+	public float bigJumpDelay = 0.01f;
 
-	protected override void Awake () {
-		instance = this;
-		base.Awake ();
-	}
+	private void Awake() {
+		character = GetComponent<Character>();
+    }
 
-	void Start() {
-		lifePoints = maxLifePoints;
+	private void Start() {
 		manaPoints = maxManaPoints;
-		StageMenu.instance.UpdateLifeText (lifePoints);
+		StageMenu.instance.UpdateLifeText (character.lifePoints);
 		StageMenu.instance.UpdateManaText (manaPoints);
 	}
 
@@ -34,30 +32,17 @@ public class Player : Character {
 	//	Movement
 	// =========================================================================================
 	
-	protected override void UpdateMovement() {
-		if (damaging)
+	private void FixedUpdate() {
+		if (character.damaging || character.dying)
 			return;
-
-		if (dying) {
-			moveVector.x = 0;
-			moveVector.z = 0;
-			return;
-		}
-
-		if (boost == Vector3.zero) {
-
-			float x = Input.GetAxis ("Horizontal");
-			float z = Input.GetAxis ("Vertical");
-		
-			if (Mathf.Abs (x) > 0 || Mathf.Abs (z) > 0) {
-				Move (x, z);
+		if (character.boost == Vector3.zero) {
+			float x = Input.GetAxis("Horizontal");
+			float z = Input.GetAxis("Vertical");
+			if (Mathf.Abs(x) > 0 || Mathf.Abs(z) > 0) {
+				character.Move(x, z);
 			} else {
-				moveVector.x = 0;
-				moveVector.z = 0;
+				character.resetMoveVector();
 			}
-		} else {
-			moveVector.x = boost.x;
-			moveVector.z = boost.z;
 		}
 	}
 
@@ -65,91 +50,44 @@ public class Player : Character {
 	//	Other input
 	// =========================================================================================
 
-	void Update() {
+	private void Update() {
 		if (!StageMenu.paused) {
-			CheckFire ();
-			CheckRoll ();
-			CheckBigJump ();
+			CheckFire();
+			CheckRoll();
+			CheckBigJump();
 		}
 	}
 
-	void CheckFire() {
+	private void CheckFire() {
 		if (manaPoints > 0) {
-			if (!rolling && Input.GetButtonDown ("Fire")) {
-				Instantiate (hadouken, transform.position, transform.rotation);
+			if (!character.rolling && Input.GetButtonDown ("Fire")) {
+				if (spitSound != null)
+					AudioSource.PlayClipAtPoint(spitSound, transform.position);
+				Instantiate(hadouken, transform.position, transform.rotation);
 				manaPoints--;
 				StageMenu.instance.UpdateManaText(manaPoints);
 			}
 		}
 	}
 
-	// =========================================================================================
-	//	Big Jump
-	// =========================================================================================
-
-	void CheckBigJump() {
-		if (dying || damaging)
+	private void CheckBigJump() {
+		if (character.dying || character.damaging || character.bigJumping)
 			return;
-
-		if (!bigJumping && Input.GetButtonDown("Jump")) {
-			jumping = false;
-			bigJumping = true;
-			Jump();
-			moveVector.y = bigJumpSpeed * Time.fixedDeltaTime;
+		if (Input.GetButtonDown("Jump")) {
+			character.BigJump();
+			if (jumpSound != null) {
+				AudioSource.PlayClipAtPoint(jumpSound, transform.position);
+			}
 		}
 	}
 
-	protected override void Jump (bool playSound) {
-		base.Jump (playSound);
-		OnRollEnd ();
-	}
-
-	public void OnJumpEnd() {
-		landing = false;
-		jumping = false;
-		Invoke ("AllowBigJump", bigJumpDelay);
-	}
-	
-	void AllowBigJump() {
-		bigJumping = false;
-	}
-
-	// =========================================================================================
-	//	Roll
-	// =========================================================================================
-
-	Vector3 boost = Vector3.zero;
-
-	void CheckRoll() {
-		if (dying || damaging || bigJumping)
+	private void CheckRoll() {
+		if (character.dying || character.damaging || character.bigJumping)
 			return;
-
-		if (!rolling && Input.GetButtonDown("Roll")) {
-			Roll();
-		}
-	}
-
-	public void Roll() {
-		rolling = true;
-		sounds [0].Play ();
-		animator.SetTrigger ("roll");
-		boost = transform.forward * Time.fixedDeltaTime * moveSpeed * 2;
-		OnJumpEnd ();
-	}
-
-	public void OnRollEnd() {
-		rolling = false;
-		if (!bigJumping) {
-			boost = Vector3.zero;
-		}
-	}
-
-	protected override void Land () {
-		if (!rolling) {
-			boost = Vector3.zero;
-			base.Land ();
-		} else {
-			OnJumpEnd();
+		if (!character.rolling && Input.GetButtonDown("Roll")) {
+			character.Roll();
+			if (rollSound != null)
+				AudioSource.PlayClipAtPoint(rollSound, transform.position);
 		}
 	}
 
@@ -157,9 +95,23 @@ public class Player : Character {
 	//	External
 	// =========================================================================================
 
+	public void Damage(int points, Vector3 origin) {
+		character.Damage(points, origin);
+		if (damageSound != null)
+			AudioSource.PlayClipAtPoint(damageSound, transform.position);
+		StageMenu.instance.UpdateLifeText(character.lifePoints);
+	}
+
+	public bool isVisible(Transform other, float vision) {
+		if (character.dying)
+			return false;
+		float distance = (transform.position - other.position).magnitude;
+		return distance < vision;
+	}
+
 	public void HealLife(int points) {
-		lifePoints = Mathf.Min (lifePoints + points, maxLifePoints);
-		StageMenu.instance.UpdateLifeText (lifePoints);
+		character.lifePoints = Mathf.Min (character.lifePoints + points, character.maxLifePoints);
+		StageMenu.instance.UpdateLifeText (character.lifePoints);
 	}
 
 	public void HealMana(int points) {
@@ -167,21 +119,16 @@ public class Player : Character {
 		StageMenu.instance.UpdateManaText (manaPoints);
 	}
 
-	public override void Damage(int points, Vector3 origin) {
-		base.Damage (points, origin);
-		StageMenu.instance.UpdateLifeText (lifePoints);
-	}
+	// =========================================================================================
+	//	Callbacks
+	// =========================================================================================
 
-	public void OnDieEnd() {
-		dying = false;
+	protected void OnDieEnd() {
+		CameraControl.instance.target = null;
 		StageMenu.instance.GameOver();
 	}
-
-	protected override void DieByCliff () {
-		CameraControl.instance.following = false;
-		StageMenu.instance.GameOver();
-		base.DieByCliff ();
+	protected void OnJumpEnd() {
+		character.Invoke("AllowBigJump", bigJumpDelay);
 	}
-
 
 }

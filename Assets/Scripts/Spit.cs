@@ -7,22 +7,16 @@ public class Spit : MonoBehaviour {
 	public float lifeTime = 15.0f;
 	
 	void Start () {
-		AudioSource source = GetComponent<AudioSource> ();
-		if (source.clip != null) {
-			source.Play ();
-		}
 		GetComponent<Rigidbody> ().velocity = transform.forward * speed;
 		Destroy (gameObject, lifeTime);
 	}
 
 	void OnTriggerEnter(Collider other) {
 		if (other.CompareTag ("Enemy")) {
-			other.gameObject.GetComponent<Enemy>().Damage(10, transform.position);
+			other.gameObject.GetComponent<Character>().Damage(10, transform.position);
 			Destroy (gameObject);
-		} else {
-			if (!other.CompareTag ("Player") && !other.CompareTag("Apple")) {
-				Destroy(gameObject);
-			}
+		} else if (!other.CompareTag ("Player") && !other.CompareTag("Apple")) {
+			Destroy(gameObject);
 		}
 	}
 

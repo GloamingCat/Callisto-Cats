@@ -4,14 +4,15 @@ using System.Collections;
 public class Apple : MonoBehaviour {
 
 	public float rotateSpeed = 20;
+	public AudioClip eatSound;
 
 	void OnTriggerEnter(Collider other) {
-		if (other.gameObject.CompareTag("Player")) {
-			AudioSource source = GetComponent<AudioSource>();
-			if (source.clip != null) { 
-				AudioSource.PlayClipAtPoint(source.clip, transform.position);
+		Player player = other.gameObject.GetComponent<Player>();
+		if (player != null) {
+			if (eatSound != null) { 
+				AudioSource.PlayClipAtPoint(eatSound, transform.position);
 			}
-			Player.instance.HealLife(2);
+			player.HealLife(2);
 			Destroy(gameObject);
 		}
 	}

@@ -1,53 +1,58 @@
 using UnityEngine;
 
-public class Enemy : Character {
+public class Enemy : MonoBehaviour {
+
+	private Character character;
+	private UnityEngine.AI.NavMeshPath path;
 
 	public float vision = 5;
-	NavMeshPath path;
 
-	protected override void Awake() {
-		base.Awake ();
-		path = new NavMeshPath();
-		lifePoints = 30;
+	private void Awake() {
+		path = new UnityEngine.AI.NavMeshPath();
+		character = GetComponent<Character>();
 	}
 
-	protected override void UpdateMovement() {
-		if (damaging)
-			return;
-		
-		if (dying) {
-			moveVector.x = 0;
-			moveVector.z = 0;
-			return;
-		}
+	private Transform findTarget() {
+		Player[] players = GameObject.FindObjectsOfType<Player>();
+		foreach (Player player in players) {
+			if (player.isVisible(transform, vision)) {
+				return player.transform;
+            }
+        }
+		return null;
+    }
 
-		float distance = (Player.instance.transform.position - transform.position).magnitude;
-		if (!Player.instance.dying && distance < vision && !dying) {
-			NavMesh.CalculatePath(transform.position, Player.instance.transform.position, NavMesh.AllAreas, path);
+	private void FixedUpdate() {
+		if (character.damaging || character.dying)
+			return;
+		Transform target = findTarget();
+		if (target == null) {
+			character.resetMoveVector();
+        } else {
+			UnityEngine.AI.NavMesh.CalculatePath(transform.position, target.position, UnityEngine.AI.NavMesh.AllAreas, path);
 			if (path.corners.Length > 1) {
 				float x = path.corners[1].x - transform.position.x;
 				float z = path.corners[1].z - transform.position.z;
-				Move (x, z);
+				character.Move(x, z);
 			}
-		} else {
-			moveVector.x = 0;
-			moveVector.z = 0;
 		}
 	}
 
-	public void OnDieEnd() {
-		Destroy (gameObject);
-	}
-
-	public void OnJumpEnd() {
-		landing = false;
-		jumping = false;
-	}
-
-	void OnControllerColliderHit(ControllerColliderHit hit) {
-		if (!dying && hit.gameObject.CompareTag ("Player")) {
-			Player.instance.Damage(10, transform.position);
+	protected void OnControllerColliderHit(ControllerColliderHit hit) {
+		if (character.dying)
+			return;
+		Player player = hit.gameObject.GetComponent<Player>();
+		if (player != null) {
+			player.Damage(10, transform.position);
 		}
+	}
+
+	// =========================================================================================
+	//	Callbacks
+	// =========================================================================================
+
+	protected void OnDieEnd() {
+		Destroy(gameObject);
 	}
 
 }

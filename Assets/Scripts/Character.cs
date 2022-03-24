@@ -1,76 +1,56 @@
 using UnityEngine;
 
-public abstract class Character : MonoBehaviour {
+public class Character : MonoBehaviour {
 	
 	public static float gravity = 0.25f;
 	public static float damageTime = 0.5f;
 
-	public float moveSpeed;
-	public float jumpSpeed;
-	
-	protected Animator animator;
-	protected CharacterController controller;
-	
-	public Vector3 moveVector = Vector3.zero;
-	public bool jumping;
-	public bool landing;
-	public bool damaging;
-	public bool dying;
-	
+	public float moveSpeed = 5;
+	public float jumpSpeed = 2.5f;
+
+	private Animator animator;
+	private CharacterController controller;
+
+	private Vector3 moveVector;
+	public bool jumping { get; private set; }
+	public bool landing { get; private set; }
+	public bool damaging { get; private set; }
+	public bool dying { get; private set; }
+	public bool rolling { get; private set; }
+
+	public int maxLifePoints = 30;
 	public int lifePoints;
 
-	protected AudioSource[] sounds;
+	// Big Jump
+	public Vector3 boost { get; private set; }
+	public bool bigJumping { get; private set; }
+	public float bigJumpSpeed = 6;
 
-	protected virtual void Awake() {
+	private void Awake() {
 		controller = GetComponent<CharacterController> ();
 		animator = GetComponent<Animator> ();
-		sounds = GetComponents<AudioSource> ();
+	}
+
+    private void Start() {
+		moveVector = Vector3.zero;
+		boost = Vector3.zero;
 		jumping = false;
 		damaging = false;
 		dying = false;
 		landing = false;
+		rolling = false;
+		lifePoints = maxLifePoints;
 	}
 
-	protected virtual void FixedUpdate() {
-		UpdateMovement();
-		UpdateJump();
-		UpdatePlatform();
-	}
-
-	// =========================================================================================
-	//	Movement
-	// =========================================================================================
-
-	protected abstract void UpdateMovement ();
-
-	protected virtual void Move(float dx, float dz) {
-		Vector3 transformedVector = AdjustedVector (dx, dz);
-		SetDirection (transformedVector.x, transformedVector.z);
-		if (!jumping)
-			Jump();
-	}
-
-	protected Vector3 AdjustedVector(float x, float z) {
-		Vector3 forward = Camera.main.transform.TransformDirection(Vector3.forward);
-		forward.y = 0;
-		forward.Normalize ();
-		Vector3 right  = new Vector3(forward.z, 0, -forward.x);
-		Vector3 vector = (x * right + z * forward).normalized;
-		return vector;
-	}
-	
-	protected void SetDirection(float dx, float dz) {
-		moveVector.x = dx * moveSpeed * Time.deltaTime;
-		moveVector.z = dz * moveSpeed * Time.deltaTime;
-		transform.rotation = Quaternion.LookRotation (moveVector);
-		transform.eulerAngles = new Vector3 (0, transform.eulerAngles.y, 0);
-	}
-
-	// =========================================================================================
-	//	Jump
-	// =========================================================================================
-
-	protected virtual void UpdateJump() {
+    private void FixedUpdate() {
+		if (!damaging) {
+			if (dying) {
+				resetMoveVector();
+			} else if (boost != Vector3.zero) {
+                moveVector.x = boost.x;
+                moveVector.z = boost.z;
+            }
+		}
 		if (controller.isGrounded) {
 			if (jumping && !landing && !dying && moveVector.y < 0) { // if was jumping
 				Land();
@@ -82,35 +62,98 @@ public abstract class Character : MonoBehaviour {
 				moveVector.y -= gravity * Time.deltaTime;
 			}
 		}
+		UpdatePlatform();
 	}
 
-	protected virtual void Jump(bool playSound = true) {
+	// =========================================================================================
+	//	Movement
+	// =========================================================================================
+
+	public virtual void Move(float dx, float dz) {
+		Vector3 transformedVector = AdjustedVector (dx, dz);
+		SetDirection (transformedVector.x, transformedVector.z);
+		if (!jumping)
+			Jump();
+	}
+
+	private Vector3 AdjustedVector(float x, float z) {
+		Vector3 forward = Camera.main.transform.TransformDirection(Vector3.forward);
+		forward.y = 0;
+		forward.Normalize ();
+		Vector3 right  = new Vector3(forward.z, 0, -forward.x);
+		Vector3 vector = (x * right + z * forward).normalized;
+		return vector;
+	}
+	
+	public void SetDirection(float dx, float dz) {
+		moveVector.x = dx * moveSpeed * Time.deltaTime;
+		moveVector.z = dz * moveSpeed * Time.deltaTime;
+		transform.rotation = Quaternion.LookRotation (moveVector);
+		transform.eulerAngles = new Vector3 (0, transform.eulerAngles.y, 0);
+	}
+
+	public void resetMoveVector() {
+		moveVector.x = 0;
+		moveVector.z = 0;
+	}
+
+	// =========================================================================================
+	//	Jump
+	// =========================================================================================
+
+	public void Jump() {
 		if (!dying) {
 			landing = false;
 			jumping = true;
-			if (playSound)
-				sounds [0].Play ();
 			animator.SetTrigger ("jump");
 			moveVector.y = jumpSpeed * Time.deltaTime;
 		}
+		OnRollEnd();
 	}
 
-	protected virtual void Land() {
-		if (!dying) {
-			animator.SetTrigger ("land");
-			landing = true;
+	public void Land() {
+		if (!rolling) {
+			boost = Vector3.zero;
+			if (!dying) {
+				animator.SetTrigger("land");
+				landing = true;
+			}
+		} else {
+			OnJumpEnd();
 		}
 	}
 
-	protected virtual void DieByCliff() {
+	public void DieByCliff() {
 		Destroy (gameObject, 1);
+		BroadcastMessage("OnDieEnd");
 	}
 
 	// =========================================================================================
-	//	External
+	//	Roll
 	// =========================================================================================
 
-	public virtual void Damage(int points, Vector3 origin) {
+	public void Roll() {
+		rolling = true;
+		animator.SetTrigger("roll");
+		boost = transform.forward * Time.fixedDeltaTime * moveSpeed * 2;
+		OnJumpEnd();
+	}
+
+	public void BigJump() {
+		bigJumping = true;
+		Jump();
+		moveVector.y = bigJumpSpeed * Time.fixedDeltaTime;
+	}
+
+	public void AllowBigJump() {
+		bigJumping = false;
+	} 
+
+	// =========================================================================================
+	//	Damage
+	// =========================================================================================
+
+	public void Damage(int points, Vector3 origin) {
 		if (!damaging && !dying) {
 			Vector3 direction = (origin - transform.position).normalized;
 			if ((direction - Vector3.down).magnitude < 0.1f) {
@@ -121,18 +164,38 @@ public abstract class Character : MonoBehaviour {
 			SetDirection (direction.x, direction.z);
 			moveVector.x *= -2;
 			moveVector.z *= -2;
-
-			sounds [1].Play ();
 			lifePoints = Mathf.Max(0, lifePoints - points);
 			damaging = true;
-
 			jumping = false;
-			Jump (false);
+			Jump();
 			Invoke("OnDamageEnd", damageTime);
 		}
 	}
 
-	protected virtual void OnDamageEnd() {
+	public void Die() {
+		if (!dying) {
+			dying = true;
+			animator.SetTrigger ("die");
+		}
+	}
+
+	// =========================================================================================
+	//	Callbacks
+	// =========================================================================================
+
+	protected void OnJumpEnd() {
+		landing = false;
+		jumping = false;
+	}
+
+	protected void OnRollEnd() {
+		rolling = false;
+		if (!bigJumping) {
+			boost = Vector3.zero;
+		}
+	}
+
+	protected void OnDamageEnd() {
 		if (lifePoints <= 0) {
 			lifePoints = 0;
 			Die();
@@ -140,13 +203,10 @@ public abstract class Character : MonoBehaviour {
 		damaging = false;
 	}
 
-	public virtual void Die() {
-		if (!dying) {
-			dying = true;
-			animator.SetTrigger ("die");
-		}
+	protected void OnDieEnd() {
+		dying = false;
 	}
-	
+
 	// =========================================================================================
 	//	Platform
 	// =========================================================================================
@@ -158,7 +218,7 @@ public abstract class Character : MonoBehaviour {
 	Quaternion activeLocalPlatformRotation;
 	Quaternion activeGlobalPlatformRotation;
 	
-	void UpdatePlatform () {
+	private void UpdatePlatform() {
 
 		if (activePlatform != null) {
 			Vector3 newGlobalPlatformPoint = activePlatform.TransformPoint(activeLocalPlatformPoint);
@@ -174,7 +234,7 @@ public abstract class Character : MonoBehaviour {
 		}
 		activePlatform = null;
 
-		controller.Move (moveVector);
+		controller.Move(moveVector);
 
 		if (activePlatform != null) {
 			activeGlobalPlatformPoint = transform.position;
@@ -184,7 +244,7 @@ public abstract class Character : MonoBehaviour {
 		}
 	}
 	
-	void OnControllerColliderHit (ControllerColliderHit hit) {
+	protected void OnControllerColliderHit (ControllerColliderHit hit) {
 		if (hit.moveDirection.y < -0.9f && hit.normal.y > 0.5f) {
 			activePlatform = hit.collider.transform;  
 		}

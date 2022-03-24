@@ -5,25 +5,26 @@ public class Star : MonoBehaviour {
 
 	public float rotateSpeed = 200;
 	public float lifeTime = 60f;
+	public AudioClip grabSound;
 
 	void Start() {
 		Destroy (gameObject, lifeTime);
-		GetComponent<Rigidbody> ().velocity = Vector3.down;
+		GetComponent<Rigidbody>().velocity = Vector3.down;
 	}
 
 	void OnTriggerEnter(Collider other) {
-		if (other.gameObject.CompareTag("Player")) {
-			AudioSource source = GetComponent<AudioSource>();
-			if (source.clip != null) {
-				AudioSource.PlayClipAtPoint(source.clip, transform.position);
+		Player player = other.gameObject.GetComponent<Player>();
+		if (player != null) {
+			if (grabSound != null) {
+				AudioSource.PlayClipAtPoint(grabSound, transform.position);
 			}
-			Player.instance.HealMana(1);
+			player.HealMana(1);
 			Destroy(gameObject);
 		}
 	}
 	
 	void Update() {
-		transform.Rotate (0, 0, rotateSpeed * Time.deltaTime);
+		transform.Rotate(0, 0, rotateSpeed * Time.deltaTime);
 	}
 
 }

@@ -14,10 +14,10 @@ public class Enemy : MonoBehaviour {
 	}
 
 	private Transform findTarget() {
-		Player[] players = GameObject.FindObjectsOfType<Player>();
-		foreach (Player player in players) {
-			if (player.IsVisible(transform, vision)) {
-				return player.transform;
+		Character[] cats = GameObject.FindObjectsOfType<Character>();
+		foreach (Character cat in cats) {
+			if (cat.CompareTag("Player") && cat.IsVisible(transform, vision)) {
+				return cat.transform;
             }
         }
 		return null;

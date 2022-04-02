@@ -27,6 +27,11 @@ public class Character : MonoBehaviour {
 	public bool bigJumping { get; private set; }
 	public float bigJumpSpeed = 6;
 
+	// Fire
+	public static int maxManaPoints = 20;
+	public int manaPoints;
+	public GameObject hadouken;
+
 	private void Awake() {
 		controller = GetComponent<CharacterController> ();
 		animator = GetComponent<Animator> ();
@@ -38,6 +43,7 @@ public class Character : MonoBehaviour {
 		landing = false;
 		rolling = false;
 		lifePoints = maxLifePoints;
+		manaPoints = maxManaPoints;
 	}
 
     private void FixedUpdate() {
@@ -63,6 +69,13 @@ public class Character : MonoBehaviour {
 			}
 		}
 		UpdatePlatform();
+	}
+
+	public bool IsVisible(Transform other, float vision) {
+		if (dying)
+			return false;
+		float distance = (transform.position - other.position).magnitude;
+		return distance < vision;
 	}
 
 	// =========================================================================================
@@ -106,7 +119,7 @@ public class Character : MonoBehaviour {
 			landing = false;
 			jumping = true;
 			animator.SetTrigger("jump");
-			BroadcastMessage("OnJump");
+			BroadcastMessage("OnJump", SendMessageOptions.DontRequireReceiver);
 			moveVector.y = jumpSpeed * Time.deltaTime;
 		}
 		OnRollEnd();
@@ -117,7 +130,7 @@ public class Character : MonoBehaviour {
 			boost = Vector3.zero;
 			if (!dying) {
 				animator.SetTrigger("land");
-				BroadcastMessage("OnLand");
+				BroadcastMessage("OnLand", SendMessageOptions.DontRequireReceiver);
 				landing = true;
 			}
 		} else {
@@ -127,7 +140,7 @@ public class Character : MonoBehaviour {
 
 	public void DieByCliff() {
 		Destroy (gameObject, 1);
-		BroadcastMessage("OnDieEnd");
+		BroadcastMessage("OnDieEnd", SendMessageOptions.DontRequireReceiver);
 	}
 
 	// =========================================================================================
@@ -137,7 +150,7 @@ public class Character : MonoBehaviour {
 	public void Roll() {
 		rolling = true;
 		animator.SetTrigger("roll");
-		BroadcastMessage("OnRoll");
+		BroadcastMessage("OnRoll", SendMessageOptions.DontRequireReceiver);
 		boost = transform.forward * Time.fixedDeltaTime * moveSpeed * 2;
 		OnJumpEnd();
 	}
@@ -178,10 +191,17 @@ public class Character : MonoBehaviour {
 	public void Die() {
 		if (!dying) {
 			dying = true;
-			BroadcastMessage("OnDie");
+			BroadcastMessage("OnDie", SendMessageOptions.DontRequireReceiver);
 			animator.SetTrigger("die");
 		}
 	}
+
+	public void Fire() {
+		if (StageManager.mode == 2) {
+			GetComponent<NetworkPlayer>().FireServerRpc(transform.position, transform.rotation);
+		} else
+			Instantiate(hadouken, transform.position, transform.rotation);
+    }
 
 	// =========================================================================================
 	//	Callbacks

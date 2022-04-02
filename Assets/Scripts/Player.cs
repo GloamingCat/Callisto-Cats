@@ -12,24 +12,18 @@ public class Player : MonoBehaviour {
 
 	// Consts
 	public static float bigJumpDelay = 0.01f;
-	public static int maxManaPoints = 20;
-	public GameObject hadouken;
 	public AudioClip rollSound;
 	public AudioClip jumpSound;
 	public AudioClip damageSound;
 	public AudioClip spitSound;
-
-	// State
-	public int manaPoints;
 
 	private void Awake() {
 		character = GetComponent<Character>();
     }
 
 	private void Start() {
-		manaPoints = maxManaPoints;
 		StageMenu.instance.UpdateLifeText (character.lifePoints);
-		StageMenu.instance.UpdateManaText (manaPoints);
+		StageMenu.instance.UpdateManaText (character.manaPoints);
 	}
 
 	// =========================================================================================
@@ -67,13 +61,13 @@ public class Player : MonoBehaviour {
 	}
 
 	public void CheckFire(bool pressed) {
-		if (manaPoints > 0) {
+		if (character.manaPoints > 0) {
 			if (!character.rolling && pressed) {
 				if (spitSound != null)
 					AudioSource.PlayClipAtPoint(spitSound, transform.position);
-				Instantiate(hadouken, transform.position, transform.rotation);
-				manaPoints--;
-				StageMenu.instance.UpdateManaText(manaPoints);
+				character.Fire();
+				character.manaPoints--;
+				StageMenu.instance.UpdateManaText(character.manaPoints);
 			}
 		}
 	}
@@ -110,21 +104,14 @@ public class Player : MonoBehaviour {
 		StageMenu.instance.UpdateLifeText(character.lifePoints);
 	}
 
-	public bool IsVisible(Transform other, float vision) {
-		if (character.dying)
-			return false;
-		float distance = (transform.position - other.position).magnitude;
-		return distance < vision;
-	}
-
 	public void HealLife(int points) {
 		character.lifePoints = Mathf.Min (character.lifePoints + points, Character.maxLifePoints);
 		StageMenu.instance.UpdateLifeText (character.lifePoints);
 	}
 
 	public void HealMana(int points) {
-		manaPoints = Mathf.Min (manaPoints + points, maxManaPoints);
-		StageMenu.instance.UpdateManaText (manaPoints);
+		character.manaPoints = Mathf.Min (character.manaPoints + points, Character.maxManaPoints);
+		StageMenu.instance.UpdateManaText (character.manaPoints);
 	}
 
 	// =========================================================================================

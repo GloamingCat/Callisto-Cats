@@ -92,4 +92,9 @@ public class NetworkPlayer : NetworkBehaviour
 		GetComponent<Animator>().SetTrigger("die");
 	}
 
+	[ServerRpc]
+	public void FireServerRpc(Vector3 position, Quaternion rotation) {
+		Instantiate(GetComponent<Character>().hadouken, position, rotation).GetComponent<NetworkObject>().Spawn();
+	}
+
 }

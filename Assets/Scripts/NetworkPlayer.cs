@@ -6,28 +6,36 @@ using UnityEngine;
 public class NetworkPlayer : NetworkBehaviour
 {
 
-    public NetworkVariable<Vector3> positionVar = new NetworkVariable<Vector3>();
-    public NetworkVariable<Quaternion> rotationVar = new NetworkVariable<Quaternion>();
+    public NetworkVariable<int> colorVar = new NetworkVariable<int>();
 
     public override void OnNetworkSpawn() {
-        positionVar.OnValueChanged += delegate (Vector3 prevp, Vector3 newp) {
-            transform.position = newp;
+        colorVar.OnValueChanged += delegate (int prevc, int newc) {
+            GetComponent<Character>().SetColor(newc);
         };
         if (IsOwner) {
             CameraControl.instance.target = transform;
-            ResetPosition();
+            ResetPlayer();
         } else {
             Destroy(GetComponent<Player>());
         }
     }
 
-    public void ResetPosition() {
+    public void ResetPlayer() {
         if (NetworkManager.Singleton.IsServer) {
             transform.position = StageManager.InitialPosition();
-            positionVar.Value = transform.position;
+            colorVar.Value = StageManager.color;
         } else {
-            ResetPositionServerRpc();
+            ResetPositionServerRpc(StageManager.color);
         }
+    }
+
+
+    // =========================================================================================
+    //	Other input
+    // =========================================================================================
+
+    public void FixedUpdate() {
+        
     }
 
     // =========================================================================================
@@ -35,8 +43,12 @@ public class NetworkPlayer : NetworkBehaviour
     // =========================================================================================
 
     [ServerRpc]
-    private void ResetPositionServerRpc() {
-        positionVar.Value = StageManager.InitialPosition();
+    private void ResetPositionServerRpc(int color) {
+        colorVar.Value = color;
     }
+
+
+
+
 
 }

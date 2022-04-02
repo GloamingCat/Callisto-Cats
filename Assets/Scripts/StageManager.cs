@@ -1,3 +1,4 @@
+using ParrelSync;
 using Unity.Netcode;
 using Unity.Netcode.Transports.UNET;
 using UnityEngine;
@@ -10,8 +11,11 @@ public class StageManager : MonoBehaviour
     private UNetTransport networkTransport;
 
     public static int mode = 0;
+    public static int color = 0;
     public static string ip;
     public static int port;
+
+    public bool testingNetwork = true;
 
     private void Awake() {
         instance = this;
@@ -20,6 +24,19 @@ public class StageManager : MonoBehaviour
     }
 
     private void Start() {
+        if (testingNetwork) {
+            port = 7777;
+            ip = "127.0.0.1";
+            if (ClonesManager.IsClone()) {        
+                string customArgument = ClonesManager.GetArgument();
+                Debug.Log("Clone arg: " + customArgument);
+                color = 3;
+                mode = 2;
+            } else {
+                color = 2;
+                mode = 1;
+            }
+        }
         if (mode == 0) {
             // Offline
             CameraControl.instance.target = Instantiate(networkManager.NetworkConfig.PlayerPrefab).transform;
@@ -65,12 +82,12 @@ public class StageManager : MonoBehaviour
                 if (networkManager.IsServer && !networkManager.IsClient) {
                     // Dedicated server
                     foreach (ulong uid in NetworkManager.Singleton.ConnectedClientsIds)
-                        networkManager.SpawnManager.GetPlayerNetworkObject(uid).GetComponent<NetworkPlayer>().ResetPosition();
+                        networkManager.SpawnManager.GetPlayerNetworkObject(uid).GetComponent<NetworkPlayer>().ResetPlayer();
                 } else {
                     // Player
                     var playerObject = networkManager.SpawnManager.GetLocalPlayerObject();
                     var player = playerObject.GetComponent<NetworkPlayer>();
-                    player.ResetPosition();
+                    player.ResetPlayer();
                 }
             }
         }

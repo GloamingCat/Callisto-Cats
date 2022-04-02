@@ -10,6 +10,7 @@ public class Character : MonoBehaviour {
 
 	private Animator animator;
 	private CharacterController controller;
+	private Renderer renderer;
 
 	private Vector3 moveVector;
 	public bool jumping { get; private set; }
@@ -18,6 +19,7 @@ public class Character : MonoBehaviour {
 	public bool dying { get; private set; }
 	public bool rolling { get; private set; }
 
+	public Material[] materials;
 	public int maxLifePoints = 30;
 	public int lifePoints;
 
@@ -27,6 +29,7 @@ public class Character : MonoBehaviour {
 	public float bigJumpSpeed = 6;
 
 	private void Awake() {
+		renderer = transform.GetChild(0).GetComponent<MeshRenderer>();
 		controller = GetComponent<CharacterController> ();
 		animator = GetComponent<Animator> ();
 	}
@@ -41,6 +44,12 @@ public class Character : MonoBehaviour {
 		rolling = false;
 		lifePoints = maxLifePoints;
 	}
+
+	public void SetColor(int i) {
+		if (i > 0) {
+			renderer.material = materials[i];
+		}
+    }
 
     private void FixedUpdate() {
 		if (!damaging) {

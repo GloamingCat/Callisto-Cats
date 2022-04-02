@@ -1,17 +1,20 @@
 using UnityEngine;
 
 public class Character : MonoBehaviour {
-	
+
+	// Components
+	private Animator animator;
+	private CharacterController controller;
+
+	// Constants
+	public static int maxLifePoints = 30;
 	public static float gravity = 0.25f;
 	public static float damageTime = 0.5f;
-
 	public float moveSpeed = 5;
 	public float jumpSpeed = 2.5f;
 
-	private Animator animator;
-	private CharacterController controller;
-	private Renderer renderer;
-
+	// State
+	public int lifePoints;
 	private Vector3 moveVector;
 	public bool jumping { get; private set; }
 	public bool landing { get; private set; }
@@ -19,22 +22,14 @@ public class Character : MonoBehaviour {
 	public bool dying { get; private set; }
 	public bool rolling { get; private set; }
 
-	public Material[] materials;
-	public int maxLifePoints = 30;
-	public int lifePoints;
-
 	// Big Jump
 	public Vector3 boost { get; private set; }
 	public bool bigJumping { get; private set; }
 	public float bigJumpSpeed = 6;
 
 	private void Awake() {
-		renderer = transform.GetChild(0).GetComponent<MeshRenderer>();
 		controller = GetComponent<CharacterController> ();
 		animator = GetComponent<Animator> ();
-	}
-
-    private void Start() {
 		moveVector = Vector3.zero;
 		boost = Vector3.zero;
 		jumping = false;
@@ -45,13 +40,9 @@ public class Character : MonoBehaviour {
 		lifePoints = maxLifePoints;
 	}
 
-	public void SetColor(int i) {
-		if (i > 0) {
-			renderer.material = materials[i];
-		}
-    }
-
     private void FixedUpdate() {
+		if (controller == null)
+			return;
 		if (!damaging) {
 			if (dying) {
 				resetMoveVector();
@@ -114,7 +105,8 @@ public class Character : MonoBehaviour {
 		if (!dying) {
 			landing = false;
 			jumping = true;
-			animator.SetTrigger ("jump");
+			animator.SetTrigger("jump");
+			BroadcastMessage("OnJump");
 			moveVector.y = jumpSpeed * Time.deltaTime;
 		}
 		OnRollEnd();
@@ -125,6 +117,7 @@ public class Character : MonoBehaviour {
 			boost = Vector3.zero;
 			if (!dying) {
 				animator.SetTrigger("land");
+				BroadcastMessage("OnLand");
 				landing = true;
 			}
 		} else {
@@ -144,6 +137,7 @@ public class Character : MonoBehaviour {
 	public void Roll() {
 		rolling = true;
 		animator.SetTrigger("roll");
+		BroadcastMessage("OnRoll");
 		boost = transform.forward * Time.fixedDeltaTime * moveSpeed * 2;
 		OnJumpEnd();
 	}
@@ -184,7 +178,8 @@ public class Character : MonoBehaviour {
 	public void Die() {
 		if (!dying) {
 			dying = true;
-			animator.SetTrigger ("die");
+			BroadcastMessage("OnDie");
+			animator.SetTrigger("die");
 		}
 	}
 

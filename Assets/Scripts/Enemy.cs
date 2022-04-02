@@ -1,5 +1,6 @@
 using UnityEngine;
 
+[RequireComponent(typeof(Character))]
 public class Enemy : MonoBehaviour {
 
 	private Character character;
@@ -15,7 +16,7 @@ public class Enemy : MonoBehaviour {
 	private Transform findTarget() {
 		Player[] players = GameObject.FindObjectsOfType<Player>();
 		foreach (Player player in players) {
-			if (player.isVisible(transform, vision)) {
+			if (player.IsVisible(transform, vision)) {
 				return player.transform;
             }
         }
@@ -44,7 +45,12 @@ public class Enemy : MonoBehaviour {
 		Player player = hit.gameObject.GetComponent<Player>();
 		if (player != null) {
 			player.Damage(10, transform.position);
+			return;
 		}
+		NetworkPlayer netPlayer = hit.gameObject.GetComponent<NetworkPlayer>();
+		if (netPlayer != null) {
+			netPlayer.DamageClientRpc(10, transform.position);
+        }
 	}
 
 	// =========================================================================================

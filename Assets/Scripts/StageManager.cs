@@ -6,12 +6,13 @@ using UnityEngine;
 public class StageManager : MonoBehaviour
 {
     public static StageManager instance = null;
+    public Material[] materials;
 
     private NetworkManager networkManager;
     private UNetTransport networkTransport;
 
     public static int mode = 0;
-    public static int color = 0;
+    public static int material = 0;
     public static string ip;
     public static int port;
 
@@ -30,10 +31,10 @@ public class StageManager : MonoBehaviour
             if (ClonesManager.IsClone()) {        
                 string customArgument = ClonesManager.GetArgument();
                 Debug.Log("Clone arg: " + customArgument);
-                color = 3;
+                material = 3;
                 mode = 2;
             } else {
-                color = 2;
+                material = 2;
                 mode = 1;
             }
         }
@@ -81,13 +82,14 @@ public class StageManager : MonoBehaviour
             if (GUILayout.Button(networkManager.IsServer ? "Reset Position" : "Request Position Reset")) {
                 if (networkManager.IsServer && !networkManager.IsClient) {
                     // Dedicated server
-                    foreach (ulong uid in NetworkManager.Singleton.ConnectedClientsIds)
-                        networkManager.SpawnManager.GetPlayerNetworkObject(uid).GetComponent<NetworkPlayer>().ResetPlayer();
+                    foreach (ulong uid in NetworkManager.Singleton.ConnectedClientsIds) {
+                        var playerObject = networkManager.SpawnManager.GetPlayerNetworkObject(uid);
+                        playerObject.transform.position = StageManager.InitialPosition();
+                    }
                 } else {
-                    // Player
+                    // Host Player
                     var playerObject = networkManager.SpawnManager.GetLocalPlayerObject();
-                    var player = playerObject.GetComponent<NetworkPlayer>();
-                    player.ResetPlayer();
+                    playerObject.transform.position = StageManager.InitialPosition();
                 }
             }
         }

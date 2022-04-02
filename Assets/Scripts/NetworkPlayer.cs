@@ -6,49 +6,90 @@ using UnityEngine;
 public class NetworkPlayer : NetworkBehaviour
 {
 
-    public NetworkVariable<int> colorVar = new NetworkVariable<int>();
+	public NetworkVariable<int> colorVar = new NetworkVariable<int>(0);
 
-    public override void OnNetworkSpawn() {
-        colorVar.OnValueChanged += delegate (int prevc, int newc) {
-            GetComponent<Character>().SetColor(newc);
-        };
-        if (IsOwner) {
-            CameraControl.instance.target = transform;
-            ResetPlayer();
-        } else {
-            Destroy(GetComponent<Player>());
-        }
+    private void Awake() {
+		colorVar.OnValueChanged += delegate (int oldm, int newm) {
+			MeshRenderer renderer = transform.GetChild(0).GetComponent<MeshRenderer>();
+			renderer.material = StageManager.instance.materials[newm];
+		};
+	}
+
+	public override void OnNetworkSpawn() {
+		if (IsOwner) {
+			CameraControl.instance.target = transform;
+			if (IsClient) {
+				ResetPlayerServerRpc(StageManager.material);
+			} else {
+				colorVar.Value = StageManager.material;
+				transform.position = StageManager.InitialPosition();
+			}
+		} else {
+			Destroy(GetComponent<Player>());
+			Destroy(GetComponent<CharacterController>());
+		}
+		MeshRenderer renderer = transform.GetChild(0).GetComponent<MeshRenderer>();
+		renderer.material = StageManager.instance.materials[colorVar.Value];
+	}
+
+	// =========================================================================================
+	//	Triggers
+	// =========================================================================================
+
+	public void OnLand() {
+		LandServerRpc();
+	}
+
+	public void OnRoll() {
+		RollServerRpc();
+	}
+
+	public void OnJump() {
+		JumpServerRpc();
+	}
+	public void OnDie() {
+		DieServerRpc();
+	}
+
+	// =========================================================================================
+	//	On Client
+	// =========================================================================================
+
+	[ClientRpc]
+	public void DamageClientRpc(int point, Vector3 origin) {
+		if (!IsOwner)
+			return;
+		GetComponent<Player>().Damage(10, transform.position);
+	}
+
+	// =========================================================================================
+	//	On Server
+	// =========================================================================================
+
+	[ServerRpc]
+	private void ResetPlayerServerRpc(int color) {
+		colorVar.Value = color;
+		transform.position = StageManager.InitialPosition();
+	}
+
+	[ServerRpc]
+	private void LandServerRpc() {
+		GetComponent<Animator>().SetTrigger("land");
     }
 
-    public void ResetPlayer() {
-        if (NetworkManager.Singleton.IsServer) {
-            transform.position = StageManager.InitialPosition();
-            colorVar.Value = StageManager.color;
-        } else {
-            ResetPositionServerRpc(StageManager.color);
-        }
-    }
+	[ServerRpc]
+	private void RollServerRpc() {
+		GetComponent<Animator>().SetTrigger("roll");
+	}
 
+	[ServerRpc]
+	private void JumpServerRpc() {
+		GetComponent<Animator>().SetTrigger("jump");
+	}
 
-    // =========================================================================================
-    //	Other input
-    // =========================================================================================
-
-    public void FixedUpdate() {
-        
-    }
-
-    // =========================================================================================
-    //	On Server
-    // =========================================================================================
-
-    [ServerRpc]
-    private void ResetPositionServerRpc(int color) {
-        colorVar.Value = color;
-    }
-
-
-
-
+	[ServerRpc]
+	private void DieServerRpc() {
+		GetComponent<Animator>().SetTrigger("die");
+	}
 
 }

@@ -4,8 +4,9 @@ using Unity.Netcode;
 
 [RequireComponent(typeof(Character))]
 public class Player : MonoBehaviour {
-
-	public bool localControl = true;
+	
+	// Singleton
+	public static Player instance = null;
 	
 	// Components
 	private Character character;
@@ -16,24 +17,32 @@ public class Player : MonoBehaviour {
 	public AudioClip jumpSound;
 	public AudioClip damageSound;
 	public AudioClip spitSound;
-
-	private void Awake() {
-		character = GetComponent<Character>();
-    }
+	public AudioClip eatSound;
+	public AudioClip starSound;
 
 	private void Start() {
+		character = GetComponent<Character>();
 		StageMenu.instance.UpdateLifeText (character.lifePoints);
 		StageMenu.instance.UpdateManaText (character.manaPoints);
 	}
 
-	// =========================================================================================
-	//	Movement
-	// =========================================================================================
+    // =========================================================================================
+    //	Movement
+    // =========================================================================================
 
-	private void FixedUpdate() {
-		if (!localControl || StageMenu.paused || character.damaging || character.dying)
+    private void FixedUpdate() {
+		if (StageMenu.paused)
 			return;
+		character.UpdateMovement();
 		CheckMovement(Input.GetAxis("Horizontal"), Input.GetAxis("Vertical"));
+	}
+
+	private void Update() {
+		if (StageMenu.paused)
+			return;
+		CheckShoot(Input.GetButtonDown("Fire"));
+		CheckRoll(Input.GetButtonDown("Roll"));
+		CheckBigJump(Input.GetButtonDown("Jump"));
 	}
 
 	public void CheckMovement(float x, float z) {
@@ -43,7 +52,7 @@ public class Player : MonoBehaviour {
 			if (Mathf.Abs(x) > 0 || Mathf.Abs(z) > 0) {
 				character.Move(x, z);
 			} else {
-				character.resetMoveVector();
+				character.ResetMoveVector();
 			}
 		}
 	}
@@ -52,22 +61,10 @@ public class Player : MonoBehaviour {
 	//	Other input
 	// =========================================================================================
 
-	private void Update() {
-		if (!localControl || StageMenu.paused)
-			return;
-		CheckFire(Input.GetButtonDown("Fire"));
-		CheckRoll(Input.GetButtonDown("Roll"));
-		CheckBigJump(Input.GetButtonDown("Jump"));
-	}
-
-	public void CheckFire(bool pressed) {
+	public void CheckShoot(bool pressed) {
 		if (character.manaPoints > 0) {
 			if (!character.rolling && pressed) {
-				if (spitSound != null)
-					AudioSource.PlayClipAtPoint(spitSound, transform.position);
-				character.Fire();
-				character.manaPoints--;
-				StageMenu.instance.UpdateManaText(character.manaPoints);
+				Shoot();
 			}
 		}
 	}
@@ -104,14 +101,27 @@ public class Player : MonoBehaviour {
 		StageMenu.instance.UpdateLifeText(character.lifePoints);
 	}
 
-	public void HealLife(int points) {
-		character.lifePoints = Mathf.Min (character.lifePoints + points, Character.maxLifePoints);
-		StageMenu.instance.UpdateLifeText (character.lifePoints);
+	public void EatApple() {
+		character.HealLife(2);
+		if (eatSound != null)
+			AudioSource.PlayClipAtPoint(eatSound, transform.position);
+		StageMenu.instance.UpdateLifeText(character.lifePoints);
 	}
 
-	public void HealMana(int points) {
-		character.manaPoints = Mathf.Min (character.manaPoints + points, Character.maxManaPoints);
-		StageMenu.instance.UpdateManaText (character.manaPoints);
+	public void GrabStar() {
+		character.HealMana(1);
+		if (starSound != null) {
+			AudioSource.PlayClipAtPoint(starSound, transform.position);
+		}
+		StageMenu.instance.UpdateManaText(character.manaPoints);
+	}
+
+	public void Shoot() {
+		character.manaPoints--;
+		BroadcastMessage("OnShoot");
+		if (spitSound != null)
+			AudioSource.PlayClipAtPoint(spitSound, transform.position);
+		StageMenu.instance.UpdateManaText(character.manaPoints);
 	}
 
 	// =========================================================================================
@@ -122,6 +132,7 @@ public class Player : MonoBehaviour {
 		CameraControl.instance.target = null;
 		StageMenu.instance.GameOver();
 	}
+
 	protected void OnJumpEnd() {
 		character.Invoke("AllowBigJump", bigJumpDelay);
 	}

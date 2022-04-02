@@ -1,15 +1,15 @@
-using System.Collections;
-using System.Collections.Generic;
 using Unity.Netcode;
 using UnityEngine;
 
 public class NetworkPlayer : NetworkBehaviour
 {
 
-	public NetworkVariable<int> colorVar = new NetworkVariable<int>(0);
+	public GameObject[] prefabs;
+
+	public NetworkVariable<int> matVar = new NetworkVariable<int>(0);
 
     private void Awake() {
-		colorVar.OnValueChanged += delegate (int oldm, int newm) {
+		matVar.OnValueChanged += delegate (int oldm, int newm) {
 			MeshRenderer renderer = transform.GetChild(0).GetComponent<MeshRenderer>();
 			renderer.material = StageManager.instance.materials[newm];
 		};
@@ -18,18 +18,21 @@ public class NetworkPlayer : NetworkBehaviour
 	public override void OnNetworkSpawn() {
 		if (IsOwner) {
 			CameraControl.instance.target = transform;
+			Player.instance = GetComponent<Player>();
 			if (IsClient) {
 				ResetPlayerServerRpc(StageManager.material);
+				gameObject.name = "Player";
 			} else {
-				colorVar.Value = StageManager.material;
-				transform.position = StageManager.InitialPosition();
+				matVar.Value = StageManager.material;
+				transform.position = StageManager.instance.initialPosition;
+				gameObject.name = "Player (Server)";
 			}
 		} else {
 			Destroy(GetComponent<Player>());
-			Destroy(GetComponent<CharacterController>());
+			gameObject.name = "Player (Ghost)";
 		}
 		MeshRenderer renderer = transform.GetChild(0).GetComponent<MeshRenderer>();
-		renderer.material = StageManager.instance.materials[colorVar.Value];
+		renderer.material = StageManager.instance.materials[matVar.Value];
 	}
 
 	// =========================================================================================
@@ -51,15 +54,33 @@ public class NetworkPlayer : NetworkBehaviour
 		DieServerRpc();
 	}
 
+	public void OnShoot() {
+		if (StageManager.mode == 2) {
+			InstantiateServerRpc(0, transform.position, transform.rotation);
+		} else {
+			GameObject obj = Instantiate(prefabs[0], transform.position, transform.rotation);
+			if (StageManager.mode == 1) {
+				obj.GetComponent<NetworkObject>().Spawn();
+			}
+		}
+	}
+
 	// =========================================================================================
 	//	On Client
 	// =========================================================================================
 
 	[ClientRpc]
-	public void DamageClientRpc(int point, Vector3 origin) {
+	public void DamageClientRpc(int points, Vector3 origin) {
 		if (!IsOwner)
 			return;
-		GetComponent<Player>().Damage(10, transform.position);
+		GetComponent<Player>().Damage(points, origin);
+	}
+
+	[ClientRpc]
+	public void EatClientRpc() {
+		if (!IsOwner)
+			return;
+		GetComponent<Player>().EatApple();
 	}
 
 	// =========================================================================================
@@ -68,8 +89,8 @@ public class NetworkPlayer : NetworkBehaviour
 
 	[ServerRpc]
 	private void ResetPlayerServerRpc(int color) {
-		colorVar.Value = color;
-		transform.position = StageManager.InitialPosition();
+		matVar.Value = color;
+		transform.position = StageManager.instance.initialPosition;
 	}
 
 	[ServerRpc]
@@ -93,8 +114,10 @@ public class NetworkPlayer : NetworkBehaviour
 	}
 
 	[ServerRpc]
-	public void FireServerRpc(Vector3 position, Quaternion rotation) {
-		Instantiate(GetComponent<Character>().hadouken, position, rotation).GetComponent<NetworkObject>().Spawn();
+	private void InstantiateServerRpc(int prefabId, Vector3 position, Quaternion rotation) {
+		GameObject inst = Instantiate(prefabs[prefabId], position, rotation);
+		inst.GetComponent<NetworkObject>().Spawn();
+		inst.GetComponent<NetworkObject>().ChangeOwnership(OwnerClientId);
 	}
 
 }

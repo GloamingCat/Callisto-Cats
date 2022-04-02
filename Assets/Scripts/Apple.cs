@@ -1,18 +1,23 @@
 ﻿using UnityEngine;
-using System.Collections;
+using Unity.Netcode;
 
 public class Apple : MonoBehaviour {
 
 	public float rotateSpeed = 20;
-	public AudioClip eatSound;
 
 	void OnTriggerEnter(Collider other) {
-		Player player = other.gameObject.GetComponent<Player>();
-		if (player != null) {
-			if (eatSound != null) { 
-				AudioSource.PlayClipAtPoint(eatSound, transform.position);
-			}
-			player.HealLife(2);
+		if (StageManager.mode == 2)
+			return;
+		if (Player.instance.gameObject == other.gameObject) {
+			// Local player
+			Player.instance.EatApple();
+			Destroy(gameObject);
+			return;
+		}
+		NetworkPlayer netPlayer = other.gameObject.GetComponent<NetworkPlayer>();
+		if (netPlayer != null) {
+			// Remote player
+			netPlayer.EatClientRpc();
 			Destroy(gameObject);
 		}
 	}

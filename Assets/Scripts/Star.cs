@@ -5,7 +5,6 @@ public class Star : MonoBehaviour {
 
 	public float rotateSpeed = 200;
 	public float lifeTime = 60f;
-	public AudioClip grabSound;
 
 	void Start() {
 		Destroy (gameObject, lifeTime);
@@ -15,10 +14,7 @@ public class Star : MonoBehaviour {
 	void OnTriggerEnter(Collider other) {
 		Player player = other.gameObject.GetComponent<Player>();
 		if (player != null) {
-			if (grabSound != null) {
-				AudioSource.PlayClipAtPoint(grabSound, transform.position);
-			}
-			player.HealMana(1);
+			player.GrabStar();
 			Destroy(gameObject);
 		}
 	}

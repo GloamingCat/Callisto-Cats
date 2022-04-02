@@ -13,8 +13,8 @@ public class Enemy : MonoBehaviour {
 		character = GetComponent<Character>();
 	}
 
-	private Transform findTarget() {
-		Character[] cats = GameObject.FindObjectsOfType<Character>();
+	private Transform FindTarget() {
+		Character[] cats = FindObjectsOfType<Character>();
 		foreach (Character cat in cats) {
 			if (cat.CompareTag("Player") && cat.IsVisible(transform, vision)) {
 				return cat.transform;
@@ -24,11 +24,14 @@ public class Enemy : MonoBehaviour {
     }
 
 	private void FixedUpdate() {
+		if (StageManager.mode == 2)
+			return;
+		character.UpdateMovement();
 		if (character.damaging || character.dying)
 			return;
-		Transform target = findTarget();
+		Transform target = FindTarget();
 		if (target == null) {
-			character.resetMoveVector();
+			character.ResetMoveVector();
         } else {
 			UnityEngine.AI.NavMesh.CalculatePath(transform.position, target.position, UnityEngine.AI.NavMesh.AllAreas, path);
 			if (path.corners.Length > 1) {
@@ -40,11 +43,10 @@ public class Enemy : MonoBehaviour {
 	}
 
 	protected void OnControllerColliderHit(ControllerColliderHit hit) {
-		if (character.dying)
+		if (StageManager.mode == 2 || character.dying)
 			return;
-		Player player = hit.gameObject.GetComponent<Player>();
-		if (player != null) {
-			player.Damage(10, transform.position);
+		if (Player.instance.gameObject == hit.gameObject) {
+			Player.instance.Damage(10, transform.position);
 			return;
 		}
 		NetworkPlayer netPlayer = hit.gameObject.GetComponent<NetworkPlayer>();

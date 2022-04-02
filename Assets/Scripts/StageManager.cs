@@ -3,20 +3,22 @@ using Unity.Netcode;
 using Unity.Netcode.Transports.UNET;
 using UnityEngine;
 
-public class StageManager : MonoBehaviour
-{
-    public static StageManager instance = null;
-    public Material[] materials;
+public class StageManager : NetworkBehaviour {
 
+    public static StageManager instance = null;
+
+    // Network
+    public Material[] materials;
     private NetworkManager networkManager;
     private UNetTransport networkTransport;
-
     public static int mode = 0;
+    public static bool pvp = true;
     public static int material = 0;
     public static string ip;
     public static int port;
-
     public bool testingNetwork = true;
+
+    public Vector3 initialPosition = new Vector3(17.13f, 0.642f, 25);
 
     private void Awake() {
         instance = this;
@@ -25,12 +27,14 @@ public class StageManager : MonoBehaviour
     }
 
     private void Start() {
+        // Network
         if (testingNetwork) {
             port = 7777;
             ip = "127.0.0.1";
             if (ClonesManager.IsClone()) {        
                 string customArgument = ClonesManager.GetArgument();
-                Debug.Log("Clone arg: " + customArgument);
+                if (customArgument.Length > 0)
+                    Debug.Log("Clone arg: " + customArgument);
                 material = 3;
                 mode = 2;
             } else {
@@ -53,12 +57,16 @@ public class StageManager : MonoBehaviour
         }
     }
 
-    public static Vector3 InitialPosition() {
-        return new Vector3(17.13f, 0.642f, 25);
-    }
-
-    public static Vector3 RandomPosition() {
-        return new Vector3(Random.Range(-3f, 3f), 1f, Random.Range(-3f, 3f));
+    public GameObject FindOwner(GameObject obj) {
+        if (mode == 0)
+            return Player.instance.gameObject;
+        ulong ownerId = obj.GetComponent<NetworkObject>().OwnerClientId;
+        foreach (GameObject player in GameObject.FindGameObjectsWithTag("Player")) {
+            if (player.GetComponent<NetworkObject>().OwnerClientId == ownerId) {
+                return player;
+            }
+        }
+        return null;
     }
 
     // =========================================================================================
@@ -72,7 +80,7 @@ public class StageManager : MonoBehaviour
             if (!networkManager.IsHost)
                 GUILayout.Label("Dedicated server");
         } else if (networkManager.IsClient) {
-            GUILayout.Label("Client to address " + ip + ":" + port);
+            GUILayout.Label("Client to address " + ip + ":" + port + ", ID " + networkManager.LocalClientId);
             if (!networkManager.IsConnectedClient)
                 GUILayout.Label("Connecting...");
         } else {
@@ -82,14 +90,14 @@ public class StageManager : MonoBehaviour
             if (GUILayout.Button(networkManager.IsServer ? "Reset Position" : "Request Position Reset")) {
                 if (networkManager.IsServer && !networkManager.IsClient) {
                     // Dedicated server
-                    foreach (ulong uid in NetworkManager.Singleton.ConnectedClientsIds) {
+                    foreach (ulong uid in networkManager.ConnectedClientsIds) {
                         var playerObject = networkManager.SpawnManager.GetPlayerNetworkObject(uid);
-                        playerObject.transform.position = StageManager.InitialPosition();
+                        playerObject.transform.position = initialPosition;
                     }
                 } else {
                     // Host Player
                     var playerObject = networkManager.SpawnManager.GetLocalPlayerObject();
-                    playerObject.transform.position = StageManager.InitialPosition();
+                    playerObject.transform.position = initialPosition;
                 }
             }
         }

@@ -30,7 +30,6 @@ public class Character : MonoBehaviour {
 	// Fire
 	public static int maxManaPoints = 20;
 	public int manaPoints;
-	public GameObject hadouken;
 
 	private void Awake() {
 		controller = GetComponent<CharacterController> ();
@@ -46,12 +45,10 @@ public class Character : MonoBehaviour {
 		manaPoints = maxManaPoints;
 	}
 
-    private void FixedUpdate() {
-		if (controller == null)
-			return;
+    public void UpdateMovement() {
 		if (!damaging) {
 			if (dying) {
-				resetMoveVector();
+				ResetMoveVector();
 			} else if (boost != Vector3.zero) {
                 moveVector.x = boost.x;
                 moveVector.z = boost.z;
@@ -76,6 +73,14 @@ public class Character : MonoBehaviour {
 			return false;
 		float distance = (transform.position - other.position).magnitude;
 		return distance < vision;
+	}
+
+	public void HealLife(int points) {
+		lifePoints = Mathf.Min(lifePoints + points, maxLifePoints);
+	}
+
+	public void HealMana(int points) {
+		manaPoints = Mathf.Min(manaPoints + points, maxManaPoints);
 	}
 
 	// =========================================================================================
@@ -105,7 +110,7 @@ public class Character : MonoBehaviour {
 		transform.eulerAngles = new Vector3 (0, transform.eulerAngles.y, 0);
 	}
 
-	public void resetMoveVector() {
+	public void ResetMoveVector() {
 		moveVector.x = 0;
 		moveVector.z = 0;
 	}
@@ -196,13 +201,6 @@ public class Character : MonoBehaviour {
 		}
 	}
 
-	public void Fire() {
-		if (StageManager.mode == 2) {
-			GetComponent<NetworkPlayer>().FireServerRpc(transform.position, transform.rotation);
-		} else
-			Instantiate(hadouken, transform.position, transform.rotation);
-    }
-
 	// =========================================================================================
 	//	Callbacks
 	// =========================================================================================
@@ -273,6 +271,5 @@ public class Character : MonoBehaviour {
 			activePlatform = hit.collider.transform;  
 		}
 	}
-
 
 }

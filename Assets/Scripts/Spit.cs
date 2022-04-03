@@ -32,8 +32,10 @@ public class Spit : MonoBehaviour {
 			if (StageManager.pvp) {
 				if (other.gameObject != owner) {
 					if (Player.instance.gameObject == other.gameObject) {
+						// Server
 						Player.instance.Damage(10, transform.position);
                     } else {
+						// Remote client
 						other.gameObject.GetComponent<NetworkPlayer>().DamageClientRpc(10, transform.position);
 					}
 					Destroy(gameObject);

@@ -2,12 +2,13 @@ using ParrelSync;
 using Unity.Netcode;
 using Unity.Netcode.Transports.UNET;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
-public class StageManager : NetworkBehaviour {
+public class StageManager : MonoBehaviour {
 
     // Network
-    private NetworkManager networkManager;
-    private UNetTransport networkTransport;
+    private static NetworkManager networkManager;
+    private static UNetTransport networkTransport;
 
     // Initial Menu Params
     public static int mode = -1;
@@ -19,12 +20,8 @@ public class StageManager : NetworkBehaviour {
     private void Awake() {
         networkManager = GetComponent<NetworkManager>();
         networkTransport = GetComponent<UNetTransport>();
-    }
-
-    private void Start() {
-        // Testing network
         if (mode == -1) {
-            if (ClonesManager.IsClone()) {        
+            if (ClonesManager.IsClone()) {
                 string customArgument = ClonesManager.GetArgument();
                 if (customArgument.Length > 0)
                     Debug.Log("Clone arg: " + customArgument);
@@ -35,26 +32,34 @@ public class StageManager : NetworkBehaviour {
                 mode = 1;
             }
         }
+    }
+
+    private void Start() {
         if (mode == 0) {
             // Offline
-            Player.instance = Instantiate(networkManager.NetworkConfig.PlayerPrefab).GetComponent<Player>();
-            CameraControl.instance.target = Player.instance.transform;
-            StageMenu.instance.netInfoText.text = "";
+            Instantiate(networkManager.NetworkConfig.PlayerPrefab).GetComponent<Player>();
         } else if (mode == 1) {
             // Host
             networkTransport.ServerListenPort = port;
             networkManager.StartHost();
-            StageMenu.instance.exitText.text = "Shutdown";
-            StageMenu.instance.netInfoText.text = "Hosting address " + ip + ":" + port + "\n" +
-                (networkManager.IsHost ? "ID " + networkManager.LocalClientId : "Dedicated server.");
         } else if (mode == 2) {
             // Client
             networkTransport.ConnectPort = port;
             networkTransport.ConnectAddress = ip;
             networkManager.StartClient();
-            StageMenu.instance.netInfoText.text = "Client to address " + ip + ":" + port + "\n" +
-                (networkManager.IsConnectedClient ? "ID " + networkManager.LocalClientId : "Connecting...");
         }
+    }
+
+    public static string GetNetInfo() {
+        if (mode == 1) {
+            return "Hosting address " + ip + ":" + port;
+        } else if (mode == 2) {
+            if (networkManager.IsConnectedClient)
+                return "Client to address " + ip + ":" + port;
+            else
+                return "Conecting to address " + ip + ":" + port;
+        }
+        return "";
     }
 
     public static GameObject FindOwner(GameObject obj) {
@@ -67,6 +72,22 @@ public class StageManager : NetworkBehaviour {
             }
         }
         return null;
+    }
+
+    public static void Exit() {
+        if (mode == 0) {
+            Destroy(NetworkManager.Singleton.gameObject);
+            SceneManager.LoadScene(0);
+        } else if (mode == 1) {
+            GameObject[] cats = GameObject.FindGameObjectsWithTag("Player");
+            foreach (GameObject cat in cats) {
+                cat.GetComponent<NetworkObject>().Despawn();
+                Destroy(cat);
+            }
+        } else {
+            mode = 0;
+            NetworkManager.Singleton.Shutdown();
+        }
     }
 
 }

@@ -1,17 +1,21 @@
-using System.Collections;
-using System.Collections.Generic;
 using Unity.Netcode;
 using UnityEngine;
 
 public class Spawner : MonoBehaviour {
 
-    public static Spawner instance = null;
+    public static Spawner instance;
 
     public GameObject[] prefabs;
     public Vector3 initialPosition = new Vector3(17.13f, 0.642f, 25);
 
-    public void Awake() {
+    private void Awake() {
         instance = this;
+    }
+
+    public void ServerSpawn(int prefabId, ulong ownerId, Vector3 position, Quaternion rotation) {
+        GameObject inst = Instantiate(prefabs[prefabId], position, rotation);
+        inst.GetComponent<NetworkObject>().Spawn();
+        inst.GetComponent<NetworkObject>().ChangeOwnership(ownerId);
     }
 
     public void Spawn(int id, Transform transform) {
@@ -28,15 +32,14 @@ public class Spawner : MonoBehaviour {
     }
 
     public void RespawnPlayer() {
+        Player.instance.transform.position = initialPosition;
+        Player.instance.Respawn();
         if (NetworkManager.Singleton.IsClient) {
             if (NetworkManager.Singleton.IsServer) {
-                Player.instance.GetComponent<Character>().ResetState(initialPosition);
-                Player.instance.GetComponent<NetworkPlayer>().animVar.Value = 0;
+                Player.instance.GetComponent<NetworkPlayer>().stateVar.Value = 0;
             } else {
                 Player.instance.GetComponent<NetworkPlayer>().RespawnServerRpc();
             }
-        } else {
-            Player.instance.GetComponent<Character>().ResetState(initialPosition);
         }
     }
 

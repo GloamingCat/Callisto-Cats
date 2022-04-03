@@ -7,6 +7,7 @@ public class Character : MonoBehaviour {
 	private CharacterController controller;
 
 	// Constants
+	private static readonly string[] stateAnimations = new string[] { "Idle", "Jump", "Land", "Roll", "Die", "Deaded" };
 	public static int maxLifePoints = 30;
 	public static float gravity = 0.25f;
 	public static float damageTime = 0.5f;
@@ -20,6 +21,7 @@ public class Character : MonoBehaviour {
 	public bool landing { get; private set; }
 	public bool damaging { get; private set; }
 	public bool dying { get; private set; }
+	public bool dead { get; private set; }
 	public bool rolling { get; private set; }
 
 	// Big Jump
@@ -34,15 +36,7 @@ public class Character : MonoBehaviour {
 	private void Awake() {
 		controller = GetComponent<CharacterController> ();
 		animator = GetComponent<Animator> ();
-		moveVector = Vector3.zero;
-		boost = Vector3.zero;
-		jumping = false;
-		damaging = false;
-		dying = false;
-		landing = false;
-		rolling = false;
-		lifePoints = maxLifePoints;
-		manaPoints = maxManaPoints;
+		ResetState();
 	}
 
     public void UpdateMovement() {
@@ -55,7 +49,8 @@ public class Character : MonoBehaviour {
             }
 		}
 		if (controller.isGrounded) {
-			if (jumping && !landing && !dying && moveVector.y < 0) { // if was jumping
+			if (jumping && !landing && !dying && moveVector.y < 0) { 
+				// If was jumping
 				Land();
 			}
 		} else { // if on air
@@ -68,8 +63,52 @@ public class Character : MonoBehaviour {
 		UpdatePlatform();
 	}
 
+	// =========================================================================================
+	//	State
+	// =========================================================================================
+
+	public void ResetState() {
+		lifePoints = maxLifePoints;
+		manaPoints = maxManaPoints;
+		moveVector = Vector3.zero;
+		boost = Vector3.zero;
+		jumping = false;
+		damaging = false;
+		dying = false;
+		dead = false;
+		landing = false;
+		rolling = false;
+		animator.Play("Idle", 0, 0);
+	}
+
+	public void SetState(int i) {
+		// Idle, Jump, Land, Roll, Die, Deaded, Damage
+		if (i == 0) {
+			ResetState();
+			return;
+		}
+		if (i != 6)
+			animator.Play(stateAnimations[i], 0, 0);
+		if (i == 1) {
+			jumping = true;
+			landing = false;
+		} else if (i == 2) {
+			jumping = true;
+			landing = true;
+		} else if (i == 3) {
+			rolling = true;
+		} else if (i == 4) {
+			dying = true;
+        } else if (i == 5) {
+			dying = false;
+			dead = true;
+        } else if (i == 6) {
+			damaging = true;
+		}
+	}
+
 	public bool IsVisible(Transform other, float vision) {
-		if (dying)
+		if (dying || dead)
 			return false;
 		float distance = (transform.position - other.position).magnitude;
 		return distance < vision;
@@ -81,13 +120,6 @@ public class Character : MonoBehaviour {
 
 	public void HealMana(int points) {
 		manaPoints = Mathf.Min(manaPoints + points, maxManaPoints);
-	}
-
-	public void ResetState(Vector3 position) {
-		transform.position = position;
-		lifePoints = maxLifePoints;
-		manaPoints = maxManaPoints;
-		animator.Play("Idle");
 	}
 
 	// =========================================================================================
@@ -104,7 +136,7 @@ public class Character : MonoBehaviour {
 	private Vector3 AdjustedVector(float x, float z) {
 		Vector3 forward = Camera.main.transform.TransformDirection(Vector3.forward);
 		forward.y = 0;
-		forward.Normalize ();
+		forward.Normalize();
 		Vector3 right  = new Vector3(forward.z, 0, -forward.x);
 		Vector3 vector = (x * right + z * forward).normalized;
 		return vector;
@@ -113,8 +145,8 @@ public class Character : MonoBehaviour {
 	public void SetDirection(float dx, float dz) {
 		moveVector.x = dx * moveSpeed * Time.deltaTime;
 		moveVector.z = dz * moveSpeed * Time.deltaTime;
-		transform.rotation = Quaternion.LookRotation (moveVector);
-		transform.eulerAngles = new Vector3 (0, transform.eulerAngles.y, 0);
+		transform.rotation = Quaternion.LookRotation(moveVector);
+		transform.eulerAngles = new Vector3(0, transform.eulerAngles.y, 0);
 	}
 
 	public void ResetMoveVector() {
@@ -128,10 +160,8 @@ public class Character : MonoBehaviour {
 
 	public void Jump() {
 		if (!dying) {
-			landing = false;
-			jumping = true;
-			animator.Play("Jump", 0, 0);
-			BroadcastMessage("OnJump", SendMessageOptions.DontRequireReceiver);
+			SetState(1);
+			BroadcastMessage("OnStateChange", 1, SendMessageOptions.DontRequireReceiver);
 			moveVector.y = jumpSpeed * Time.deltaTime;
 		}
 		OnRollEnd();
@@ -141,9 +171,8 @@ public class Character : MonoBehaviour {
 		if (!rolling) {
 			boost = Vector3.zero;
 			if (!dying) {
-				animator.Play("Land", 0, 0);
-				BroadcastMessage("OnLand", SendMessageOptions.DontRequireReceiver);
-				landing = true;
+				SetState(2);
+				BroadcastMessage("OnStateChange", 2, SendMessageOptions.DontRequireReceiver);
 			}
 		} else {
 			OnJumpEnd();
@@ -152,7 +181,7 @@ public class Character : MonoBehaviour {
 
 	public void DieByCliff() {
 		Destroy (gameObject, 1);
-		BroadcastMessage("OnDieEnd", SendMessageOptions.DontRequireReceiver);
+		BroadcastMessage("OnStateChange", 5, SendMessageOptions.DontRequireReceiver);
 	}
 
 	// =========================================================================================
@@ -160,9 +189,8 @@ public class Character : MonoBehaviour {
 	// =========================================================================================
 
 	public void Roll() {
-		rolling = true;
-		animator.Play("Roll", 0, 0);
-		BroadcastMessage("OnRoll", SendMessageOptions.DontRequireReceiver);
+		SetState(3);
+		BroadcastMessage("OnStateChange", 3, SendMessageOptions.DontRequireReceiver);
 		boost = transform.forward * Time.fixedDeltaTime * moveSpeed * 2;
 		OnJumpEnd();
 	}
@@ -190,11 +218,10 @@ public class Character : MonoBehaviour {
 				direction.z += r % 2 == 0 ? -1 : 1;
 			}
 			SetDirection (direction.x, direction.z);
+			SetState(6);
 			moveVector.x *= -2;
 			moveVector.z *= -2;
 			lifePoints = Mathf.Max(0, lifePoints - points);
-			damaging = true;
-			jumping = false;
 			Jump();
 			Invoke("OnDamageEnd", damageTime);
 		}
@@ -202,8 +229,8 @@ public class Character : MonoBehaviour {
 
 	public void Die() {
 		if (!dying) {
-			dying = true;
-			BroadcastMessage("OnDie", SendMessageOptions.DontRequireReceiver);
+			SetState(4);
+			BroadcastMessage("OnStateChange", 4, SendMessageOptions.DontRequireReceiver);
 			animator.Play("Die");
 		}
 	}
@@ -232,8 +259,9 @@ public class Character : MonoBehaviour {
 		damaging = false;
 	}
 
-	protected void OnDieEnd() {
-		dying = false;
+	public void OnDieEnd() {
+		SetState(5);
+		BroadcastMessage("OnStateChange", 5, SendMessageOptions.DontRequireReceiver);
 	}
 
 	// =========================================================================================

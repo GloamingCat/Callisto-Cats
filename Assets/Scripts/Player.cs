@@ -1,6 +1,4 @@
 using UnityEngine;
-using System.Collections;
-using Unity.Netcode;
 
 [RequireComponent(typeof(Character))]
 public class Player : MonoBehaviour {
@@ -20,10 +18,19 @@ public class Player : MonoBehaviour {
 	public AudioClip eatSound;
 	public AudioClip starSound;
 
+	private StageMenu menu;
+	private CameraControl mainCamera;
+	private Spawner spawner;
+
 	private void Start() {
+		instance = this;
 		character = GetComponent<Character>();
-		StageMenu.instance.UpdateLifeText (character.lifePoints);
-		StageMenu.instance.UpdateManaText (character.manaPoints);
+		mainCamera = FindObjectOfType<CameraControl>();
+		mainCamera.target = transform;
+		menu = FindObjectOfType<StageMenu>();
+		menu.UpdateLifeText (character.lifePoints);
+		menu.UpdateManaText (character.manaPoints);
+		spawner = FindObjectOfType<Spawner>();
 	}
 
     // =========================================================================================
@@ -31,18 +38,10 @@ public class Player : MonoBehaviour {
     // =========================================================================================
 
     private void FixedUpdate() {
-		if (StageMenu.paused)
+		if (menu.paused || menu.gameOver)
 			return;
 		character.UpdateMovement();
 		CheckMovement(Input.GetAxis("Horizontal"), Input.GetAxis("Vertical"));
-	}
-
-	private void Update() {
-		if (StageMenu.paused)
-			return;
-		CheckShoot(Input.GetButtonDown("Fire"));
-		CheckRoll(Input.GetButtonDown("Roll"));
-		CheckBigJump(Input.GetButtonDown("Jump"));
 	}
 
 	public void CheckMovement(float x, float z) {
@@ -61,28 +60,32 @@ public class Player : MonoBehaviour {
 	//	Other input
 	// =========================================================================================
 
-	public void CheckShoot(bool pressed) {
+	private void Update() {
+		if (Input.GetButtonDown("Pause")) {
+			bool value = !menu.paused;
+			if (StageManager.mode == 0) {
+				SetPaused(value);
+			} else {
+				BroadcastMessage("OnPause", value, SendMessageOptions.DontRequireReceiver);
+			}
+		}
+		if (menu.paused || menu.gameOver)
+			return;
+		// Shoot
 		if (character.manaPoints > 0) {
-			if (!character.rolling && pressed) {
+			if (!character.rolling && Input.GetButtonDown("Fire")) {
 				Shoot();
 			}
 		}
-	}
-
-	public void CheckRoll(bool pressed) {
+		// Roll
 		if (character.dying || character.damaging || character.bigJumping)
 			return;
-		if (!character.rolling && pressed) {
+		if (!character.rolling && Input.GetButtonDown("Roll")) {
 			character.Roll();
 			if (rollSound != null)
 				AudioSource.PlayClipAtPoint(rollSound, transform.position);
 		}
-	}
-
-	public void CheckBigJump(bool pressed) {
-		if (character.dying || character.damaging || character.bigJumping)
-			return;
-		if (pressed) {
+		if (Input.GetButtonDown("Jump")) {
 			character.BigJump();
 			if (jumpSound != null) {
 				AudioSource.PlayClipAtPoint(jumpSound, transform.position);
@@ -98,14 +101,14 @@ public class Player : MonoBehaviour {
 		character.Damage(points, origin);
 		if (damageSound != null)
 			AudioSource.PlayClipAtPoint(damageSound, transform.position);
-		StageMenu.instance.UpdateLifeText(character.lifePoints);
+		menu.UpdateLifeText(character.lifePoints);
 	}
 
 	public void EatApple() {
 		character.HealLife(2);
 		if (eatSound != null)
 			AudioSource.PlayClipAtPoint(eatSound, transform.position);
-		StageMenu.instance.UpdateLifeText(character.lifePoints);
+		menu.UpdateLifeText(character.lifePoints);
 	}
 
 	public void GrabStar() {
@@ -113,24 +116,34 @@ public class Player : MonoBehaviour {
 		if (starSound != null) {
 			AudioSource.PlayClipAtPoint(starSound, transform.position);
 		}
-		StageMenu.instance.UpdateManaText(character.manaPoints);
+		menu.UpdateManaText(character.manaPoints);
 	}
 
 	public void Shoot() {
 		character.manaPoints--;
-		Spawner.instance.Spawn(0, transform);
+		spawner.Spawn(0, transform);
 		if (spitSound != null)
 			AudioSource.PlayClipAtPoint(spitSound, transform.position);
-		StageMenu.instance.UpdateManaText(character.manaPoints);
+		menu.UpdateManaText(character.manaPoints);
 	}
+
+	public void Respawn() {
+		character.ResetState();
+		menu.ResetMenu(character.lifePoints, character.manaPoints);
+		mainCamera.target = transform;
+	}
+
+	public void SetPaused(bool value) {
+		menu.SetPaused(value);
+    }
 
 	// =========================================================================================
 	//	Callbacks
 	// =========================================================================================
 
 	protected void OnDieEnd() {
-		CameraControl.instance.target = null;
-		StageMenu.instance.GameOver();
+		mainCamera.target = null;
+		menu.GameOver();
 	}
 
 	protected void OnJumpEnd() {

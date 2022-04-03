@@ -1,33 +1,36 @@
 using Unity.Netcode;
 using UnityEngine;
 
-public class NetworkPlayer : NetworkBehaviour
-{
+public class NetworkPlayer : NetworkBehaviour {
 
 	public Material[] materials;
-	private static string[] animations = new string[] { "Idle", "Jump", "Land", "Roll", "Die", "Deaded" };
-
+	
 	public NetworkVariable<int> matVar = new NetworkVariable<int>(0);
-	public NetworkVariable<int> animVar = new NetworkVariable<int>(0);
+	public NetworkVariable<int> stateVar = new NetworkVariable<int>(0);
+
+	private Character character;
+	private Player player = null;
 
     private void Awake() {
+		character = GetComponent<Character>();
 		matVar.OnValueChanged += delegate (int oldi, int newi) {
 			MeshRenderer renderer = transform.GetChild(0).GetComponent<MeshRenderer>();
 			renderer.material = materials[newi];
 		};
-		animVar.OnValueChanged += delegate (int oldi, int newi) {
-			if (!IsOwner)
-				GetComponent<Animator>().Play(animations[newi], 0, 0);
+		stateVar.OnValueChanged += delegate (int oldi, int newi) {
+			if (!IsOwner) {
+				ulong ghostOwnerId = NetworkManager.Singleton.LocalClientId;
+				//Debug.Log("Apply state change of player " + OwnerClientId + " on ghost of " + ghostOwnerId + ": " + newi);
+				character.SetState(newi);
+			}
 		};
 	}
 
 	public override void OnNetworkSpawn() {
 		if (IsOwner) {
-			CameraControl.instance.target = transform;
-			Player.instance = GetComponent<Player>();
+			player = GetComponent<Player>();
 			if (IsServer) {
 				matVar.Value = StageManager.material;
-				transform.position = Spawner.instance.initialPosition;
 				gameObject.name = "Player (Server)";
 			} else {
 				InitServerRpc(StageManager.material);
@@ -47,64 +50,56 @@ public class NetworkPlayer : NetworkBehaviour
 		if (!IsOwner)
 			return;
 		StageManager.mode = 0;
-		StageMenu.instance.Exit();
+		StageManager.Exit();
 	}
 
 	// =========================================================================================
 	//	Triggers
 	// =========================================================================================
 
-	public void OnJump() {
-		AnimationServerRpc(1);
+	public void OnStateChange(int i) {
+		if (IsOwner) {
+			//Debug.Log("Warn server of new state of player " + OwnerClientId + ": " + i);
+			ChangeStateServerRpc(i);
+		}
 	}
 
-	public void OnLand() {
-		AnimationServerRpc(2);
+    public void OnPause(bool pause) {
+		PauseServerRpc(pause);
 	}
-
-	public void OnRoll() {
-		AnimationServerRpc(3);
-	}
-
-	public void OnDie() {
-		AnimationServerRpc(4);
-	}
-
-	public void OnDieEnd() {
-		AnimationServerRpc(5);
-    }
 
     // =========================================================================================
-    //	On Client
+    //  Broadcast for clients
     // =========================================================================================
 
     [ClientRpc]
 	public void DamageClientRpc(int points, Vector3 origin) {
 		if (!IsOwner)
 			return;
-		GetComponent<Player>().Damage(points, origin);
+		player.Damage(points, origin);
 	}
 
 	[ClientRpc]
 	public void EatClientRpc() {
 		if (!IsOwner)
 			return;
-		GetComponent<Player>().EatApple();
+		player.EatApple();
 	}
 
 	[ClientRpc]
 	public void PauseClientRpc(bool value) {
-		StageMenu.instance.SetPaused(value);
+		if (!IsOwner)
+			return;
+		player.SetPaused(value);
     }
 
 	// =========================================================================================
-	//	On Server
+	//	Server Messages
 	// =========================================================================================
 
 	[ServerRpc]
 	public void InitServerRpc(int mat) {
 		matVar.Value = mat;
-		transform.position = Spawner.instance.initialPosition;
 	}
 
 	[ServerRpc]
@@ -114,9 +109,10 @@ public class NetworkPlayer : NetworkBehaviour
 	}
 
 	[ServerRpc]
-	public void AnimationServerRpc(int id) {
-		GetComponent<Animator>().Play(animations[id], 0, 0);
-		animVar.Value = id;
+	public void ChangeStateServerRpc(int id) {
+		//Debug.Log("Warned of state change of player" + OwnerClientId + ": " + id);
+		character.SetState(id);
+		stateVar.Value = id;
 	}
 
 	[ServerRpc]
@@ -129,15 +125,13 @@ public class NetworkPlayer : NetworkBehaviour
 
 	[ServerRpc]
 	public void RespawnServerRpc() {
-		GetComponent<Animator>().Play(animations[0], 0, 0);
-		animVar.Value = 0;
+		character.ResetState();
+		stateVar.Value = 0;
 	}
 
 	[ServerRpc]
 	public void InstantiateServerRpc(int prefabId, Vector3 position, Quaternion rotation) {
-		GameObject inst = Instantiate(Spawner.instance.prefabs[prefabId], position, rotation);
-		inst.GetComponent<NetworkObject>().Spawn();
-		inst.GetComponent<NetworkObject>().ChangeOwnership(OwnerClientId);
+		Spawner.instance.ServerSpawn(prefabId, OwnerClientId, position, rotation);
 	}
 
 }

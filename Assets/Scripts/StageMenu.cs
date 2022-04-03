@@ -2,6 +2,7 @@
 using UnityEngine.UI;
 using System.Collections;
 using UnityEngine.SceneManagement;
+using Unity.Netcode;
 
 public class StageMenu : MonoBehaviour {
 
@@ -9,38 +10,64 @@ public class StageMenu : MonoBehaviour {
 	public static bool paused = false;
 	public static bool gameOver = false;
 
-	public Text pauseText;
-	public Text gameOverText;
+	public Text centerText;
 	public Text lifeText;
 	public Text manaText;
+	public Text netInfoText;
+	public Text exitText;
 
-	public GameObject restartButton;
-
-	void Awake() {
+	private void Awake() {
 		instance = this;
 		paused = false;
 		gameOver = false;
 	}
 
-	void Update() {
+	private void Update() {
+		if (StageManager.mode != 0) {
+        }
+		if (gameOver)
+			return;
 		if (Input.GetButtonDown ("Pause")) {
-			if (paused) {
-				paused = false;
-				Time.timeScale = 1;
-				pauseText.text = "";
-			} else {
-				Time.timeScale = 0;
-				paused = true;
-				pauseText.text = "Paused";
-			}
+			if (StageManager.mode == 0)
+				SetPaused(!paused);
+			else
+				Player.instance.GetComponent<NetworkPlayer>().OnPause(!paused);
+		}
+	}
+
+	public void SetPaused(bool value) {
+		paused = value;
+		if (paused) {
+			Time.timeScale = 0;
+			centerText.text = "Paused";
+		} else {
+			Time.timeScale = 1;
+			centerText.text = "";
 		}
 	}
 
 	public void GameOver() {
-		Time.timeScale = 0;
+		if (StageManager.mode == 0) 
+			Time.timeScale = 0;
 		gameOver = true;
-		gameOverText.text = "Game Over";
-		restartButton.SetActive (true);
+		centerText.text = "Game Over";
+	}
+
+	public void Exit() {
+		Time.timeScale = 1;
+		if (StageManager.mode == 0) {
+			Destroy(NetworkManager.Singleton.gameObject);
+			SceneManager.LoadScene(0);
+		} else if (StageManager.mode == 1) {
+			GameObject[] cats = GameObject.FindGameObjectsWithTag("Player");
+			foreach (GameObject cat in cats) {
+				cat.GetComponent<NetworkObject>().Despawn();
+				Destroy(cat);
+			}
+		} else {
+			StageManager.mode = 0;
+			NetworkManager.Singleton.Shutdown();
+		}
 	}
 
 	public void UpdateLifeText(int value) {
@@ -49,12 +76,6 @@ public class StageMenu : MonoBehaviour {
 
 	public void UpdateManaText(int value) {
 		manaText.text = "Mana: " + value;
-	}
-
-	public void Restart() {
-		Time.timeScale = 1;
-		Destroy(StageManager.instance.gameObject);
-		SceneManager.LoadScene(0);
 	}
 
 }

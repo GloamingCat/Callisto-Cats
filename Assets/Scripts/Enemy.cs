@@ -1,3 +1,4 @@
+using Unity.Netcode;
 using UnityEngine;
 
 [RequireComponent(typeof(Character))]
@@ -24,7 +25,7 @@ public class Enemy : MonoBehaviour {
     }
 
 	private void FixedUpdate() {
-		if (StageManager.mode == 2)
+		if (NetworkManager.Singleton.IsConnectedClient)
 			return;
 		character.UpdateMovement();
 		if (character.damaging || character.dying)
@@ -43,16 +44,18 @@ public class Enemy : MonoBehaviour {
 	}
 
 	protected void OnControllerColliderHit(ControllerColliderHit hit) {
-		if (StageManager.mode == 2 || character.dying)
+		if (NetworkManager.Singleton.IsConnectedClient || character.dying)
 			return;
-		if (Player.instance.gameObject == hit.gameObject) {
-			Player.instance.Damage(10, transform.position);
-			return;
+		if (hit.gameObject.CompareTag("Player")) {
+			if (Player.instance.gameObject == hit.gameObject) {
+				Player.instance.Damage(10, transform.position);
+				return;
+			}
+			NetworkPlayer netPlayer = hit.gameObject.GetComponent<NetworkPlayer>();
+			if (netPlayer != null) {
+				netPlayer.DamageClientRpc(10, transform.position);
+			}
 		}
-		NetworkPlayer netPlayer = hit.gameObject.GetComponent<NetworkPlayer>();
-		if (netPlayer != null) {
-			netPlayer.DamageClientRpc(10, transform.position);
-        }
 	}
 
 	// =========================================================================================

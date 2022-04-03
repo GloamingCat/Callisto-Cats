@@ -118,7 +118,7 @@ public class Player : MonoBehaviour {
 
 	public void Shoot() {
 		character.manaPoints--;
-		BroadcastMessage("OnShoot");
+		Spawner.instance.Spawn(0, transform);
 		if (spitSound != null)
 			AudioSource.PlayClipAtPoint(spitSound, transform.position);
 		StageMenu.instance.UpdateManaText(character.manaPoints);

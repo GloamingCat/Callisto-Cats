@@ -83,6 +83,13 @@ public class Character : MonoBehaviour {
 		manaPoints = Mathf.Min(manaPoints + points, maxManaPoints);
 	}
 
+	public void ResetState(Vector3 position) {
+		transform.position = position;
+		lifePoints = maxLifePoints;
+		manaPoints = maxManaPoints;
+		animator.Play("Idle");
+	}
+
 	// =========================================================================================
 	//	Movement
 	// =========================================================================================
@@ -123,7 +130,7 @@ public class Character : MonoBehaviour {
 		if (!dying) {
 			landing = false;
 			jumping = true;
-			animator.SetTrigger("jump");
+			animator.Play("Jump", 0, 0);
 			BroadcastMessage("OnJump", SendMessageOptions.DontRequireReceiver);
 			moveVector.y = jumpSpeed * Time.deltaTime;
 		}
@@ -134,7 +141,7 @@ public class Character : MonoBehaviour {
 		if (!rolling) {
 			boost = Vector3.zero;
 			if (!dying) {
-				animator.SetTrigger("land");
+				animator.Play("Land", 0, 0);
 				BroadcastMessage("OnLand", SendMessageOptions.DontRequireReceiver);
 				landing = true;
 			}
@@ -154,7 +161,7 @@ public class Character : MonoBehaviour {
 
 	public void Roll() {
 		rolling = true;
-		animator.SetTrigger("roll");
+		animator.Play("Roll", 0, 0);
 		BroadcastMessage("OnRoll", SendMessageOptions.DontRequireReceiver);
 		boost = transform.forward * Time.fixedDeltaTime * moveSpeed * 2;
 		OnJumpEnd();
@@ -197,7 +204,7 @@ public class Character : MonoBehaviour {
 		if (!dying) {
 			dying = true;
 			BroadcastMessage("OnDie", SendMessageOptions.DontRequireReceiver);
-			animator.SetTrigger("die");
+			animator.Play("Die");
 		}
 	}
 

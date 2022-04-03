@@ -6,19 +6,21 @@ public class Apple : MonoBehaviour {
 	public float rotateSpeed = 20;
 
 	void OnTriggerEnter(Collider other) {
-		if (StageManager.mode == 2)
-			return;
-		if (Player.instance.gameObject == other.gameObject) {
-			// Local player
-			Player.instance.EatApple();
-			Destroy(gameObject);
-			return;
-		}
-		NetworkPlayer netPlayer = other.gameObject.GetComponent<NetworkPlayer>();
-		if (netPlayer != null) {
-			// Remote player
-			netPlayer.EatClientRpc();
-			Destroy(gameObject);
+		if (NetworkManager.Singleton.IsClient) {
+			if (NetworkManager.Singleton.IsServer) {
+				NetworkPlayer netPlayer = other.gameObject.GetComponent<NetworkPlayer>();
+				if (netPlayer == null) 
+					return;
+				netPlayer.EatClientRpc();
+				Destroy(gameObject);
+			}
+		} else {
+			if (Player.instance.gameObject == other.gameObject) {
+				// Local player
+				Player.instance.EatApple();
+				Destroy(gameObject);
+				return;
+			}
 		}
 	}
 

@@ -14,16 +14,16 @@ public class Spit : MonoBehaviour {
 	}
 
 	private void Start () {
-		owner = StageManager.instance.FindOwner(gameObject);
+		owner = StageManager.FindOwner(gameObject);
 		meshRenderer.material = owner.transform.GetChild(0).GetComponent<MeshRenderer>().material;
-		if (StageManager.mode == 2)
+		if (NetworkManager.Singleton.IsConnectedClient)
 			return;
 		GetComponent<Rigidbody> ().velocity = transform.forward * speed;
 		Destroy (gameObject, lifeTime);
 	}
 
 	private void OnTriggerEnter(Collider other) {
-		if (StageManager.mode == 2)
+		if (NetworkManager.Singleton.IsConnectedClient)
 			return;
 		if (other.CompareTag("Enemy")) {
 			other.gameObject.GetComponent<Character>().Damage(10, transform.position);

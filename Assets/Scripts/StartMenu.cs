@@ -31,6 +31,7 @@ public class StartMenu : MonoBehaviour
         StageManager.mode = 1;
         StageManager.port = Int32.Parse(portInput.text);
         StageManager.ip = ipInput.text;
+        StageManager.material = 0;
         SceneManager.LoadScene(1);
     }
 
@@ -38,6 +39,7 @@ public class StartMenu : MonoBehaviour
         StageManager.mode = 2;
         StageManager.port = Int32.Parse(portInput.text);
         StageManager.ip = ipInput.text;
+        StageManager.material = UnityEngine.Random.Range(1, 6);
         SceneManager.LoadScene(1);
     }
 

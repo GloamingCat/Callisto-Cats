@@ -28,10 +28,11 @@ public class StageMenu : MonoBehaviour {
 		if (gameOver)
 			return;
 		if (Input.GetButtonDown ("Pause")) {
-			if (StageManager.mode == 0)
+			if (StageManager.mode == 0) {
 				SetPaused(!paused);
-			else
-				Player.instance.GetComponent<NetworkPlayer>().OnPause(!paused);
+			} else {
+				Player.instance.GetComponent<NetworkPlayer>().PauseServerRpc(!paused);
+			}
 		}
 	}
 

@@ -9,7 +9,6 @@ public class NetworkPlayer : NetworkBehaviour
 
 	public NetworkVariable<int> matVar = new NetworkVariable<int>(0);
 	public NetworkVariable<int> animVar = new NetworkVariable<int>(0);
-	public NetworkVariable<bool> pauseVar = new NetworkVariable<bool>(false);
 
     private void Awake() {
 		matVar.OnValueChanged += delegate (int oldi, int newi) {
@@ -19,9 +18,6 @@ public class NetworkPlayer : NetworkBehaviour
 		animVar.OnValueChanged += delegate (int oldi, int newi) {
 			if (!IsOwner)
 				GetComponent<Animator>().Play(animations[newi], 0, 0);
-		};
-		pauseVar.OnValueChanged += delegate (bool oldi, bool newi) {
-			StageMenu.instance.SetPaused(newi);
 		};
 	}
 
@@ -37,6 +33,8 @@ public class NetworkPlayer : NetworkBehaviour
 				InitServerRpc(StageManager.material);
 				gameObject.name = "Player";
 			}
+			if (!IsServer)
+				PauseServerRpc(false);
 		} else {
 			Destroy(GetComponent<Player>());
 			gameObject.name = "Player (Ghost)";
@@ -76,15 +74,6 @@ public class NetworkPlayer : NetworkBehaviour
 		AnimationServerRpc(5);
     }
 
-    public void OnPause(bool value) {
-		if (IsServer) {
-			StageMenu.instance.SetPaused(value);
-			pauseVar.Value = value;
-		} else {
-			Player.instance.GetComponent<NetworkPlayer>().PauseServerRpc(value);
-		}
-	}
-
     // =========================================================================================
     //	On Client
     // =========================================================================================
@@ -102,6 +91,11 @@ public class NetworkPlayer : NetworkBehaviour
 			return;
 		GetComponent<Player>().EatApple();
 	}
+
+	[ClientRpc]
+	public void PauseClientRpc(bool value) {
+		StageMenu.instance.SetPaused(value);
+    }
 
 	// =========================================================================================
 	//	On Server
@@ -127,7 +121,10 @@ public class NetworkPlayer : NetworkBehaviour
 
 	[ServerRpc]
 	public void PauseServerRpc(bool value) {
-		pauseVar.Value = value;
+		NetworkPlayer[] players = FindObjectsOfType<NetworkPlayer>();
+		foreach (NetworkPlayer player in players) {
+			player.PauseClientRpc(value);
+		}
 	}
 
 	[ServerRpc]

@@ -1,25 +1,28 @@
 ﻿using UnityEngine;
-using Unity.Netcode;
 
 public class Apple : MonoBehaviour {
 
 	public float rotateSpeed = 20;
 
 	void OnTriggerEnter(Collider other) {
-		if (NetworkManager.Singleton.IsClient) {
-			if (NetworkManager.Singleton.IsServer) {
-				NetworkCat netPlayer = other.gameObject.GetComponent<NetworkCat>();
-				if (netPlayer == null) 
-					return;
-				netPlayer.EatClientRpc();
-				Destroy(gameObject);
-			}
+		// Server only.
+		if (StageNetwork.mode == 2)
+			return;
+		if (!other.gameObject.CompareTag("Player"))
+			return;
+		if (StageNetwork.mode == 0) {
+			StageController.instance.EatApple();
+			Destroy(gameObject);
 		} else {
 			if (StageController.instance.IsLocalPlayer(other.gameObject)) {
-				// Local player
+				// Collides with host player.
 				StageController.instance.EatApple();
-				Destroy(gameObject);
-				return;
+				StageNetwork.Despawn(gameObject);
+			} else {
+				// Collides with ghost player.
+				NetworkCat netPlayer = other.gameObject.GetComponent<NetworkCat>();
+				netPlayer.EatClientRpc();
+				StageNetwork.Despawn(gameObject);
 			}
 		}
 	}

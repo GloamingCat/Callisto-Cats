@@ -43,6 +43,7 @@ public class NetworkCat : NetworkBehaviour {
 		if (!CompareTag("Player"))
 			return;
 		if (IsOwner) {
+			// Local player.
 			StageController.instance.SetLocalPlayer(gameObject);
 			Vector4 init = new Vector4(transform.position.x, transform.position.y,
 				transform.position.z, StageNetwork.material);
@@ -53,13 +54,23 @@ public class NetworkCat : NetworkBehaviour {
 				InitServerRpc(init);
 				gameObject.name = "Player";
 			}
-			if (!IsServer)
-				PauseServerRpc(false);
 		} else {
+			// Player ghost.
 			gameObject.name = "Player (Ghost)";
+			if (IsServer) {
+				// Sent to the owner the game rules.
+				ClientRpcParams clientRpcParams = new ClientRpcParams {
+					Send = new ClientRpcSendParams {
+						TargetClientIds = new ulong[] { OwnerClientId }
+					}
+				};
+				InitModeClientRpc(StageController.killMode, StageController.respawn, StageController.timeLimit,
+					clientRpcParams);
+			}
 		}
 		MeshRenderer renderer = transform.GetChild(0).GetComponent<MeshRenderer>();
 		renderer.material = StageNetwork.GetMaterial((int)initVar.Value.w);
+		StageController.instance.SetPaused(true);
 	}
 
 	public override void OnNetworkDespawn() {
@@ -94,11 +105,20 @@ public class NetworkCat : NetworkBehaviour {
 		PauseServerRpc(pause);
 	}
 
-    // =========================================================================================
-    //  Broadcast for clients
-    // =========================================================================================
+	// =========================================================================================
+	//  Broadcast for clients
+	// =========================================================================================
 
-    [ClientRpc]
+	[ClientRpc]
+	public void InitModeClientRpc(int killMode, bool respawn, float time,
+			ClientRpcParams clientRpcParams = default) {
+		Debug.Log("Set mode: " + killMode + " " + respawn + " " + time);
+		StageController.killMode = killMode;
+		StageController.respawn = respawn;
+		StageController.timeLimit = time;
+	}
+
+	[ClientRpc]
 	public void DamageClientRpc(int points, Vector3 origin) {
 		if (!IsOwner)
 			return;
@@ -117,6 +137,11 @@ public class NetworkCat : NetworkBehaviour {
 		if (!IsOwner)
 			return;
 		StageController.instance.SetPaused(value);
+    }
+
+	[ClientRpc]
+	public void GameOverClientRpc(bool timeout) {
+		StageController.instance.PartyGameOver(timeout);
     }
 
 	// =========================================================================================

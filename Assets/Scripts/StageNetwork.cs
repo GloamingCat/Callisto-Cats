@@ -12,9 +12,8 @@ public class StageNetwork : MonoBehaviour {
     private static NetworkManager networkManager;
     private static UNetTransport networkTransport;
 
-    // Initial Menu Params
+    // Initial Menu Params (network)
     public static int mode = -1;
-    public static bool pvp = true;
     public static int material = 0;
     public static string ip = "127.0.0.1";
     public static int port = 7777;
@@ -60,12 +59,12 @@ public class StageNetwork : MonoBehaviour {
 
     public static string GetNetInfo() {
         if (mode == 1) {
-            return "Hosting address " + ip + ":" + port;
+            return "Hosting to port: " + port;
         } else if (mode == 2) {
             if (networkManager.IsConnectedClient)
                 return "Client to address " + ip + ":" + port;
             else
-                return "Connecting to address " + ip + ":" + port;
+                return "Connecting to address " + ip + ":" + port + "...";
         }
         return "";
     }
@@ -81,6 +80,14 @@ public class StageNetwork : MonoBehaviour {
         }
         return null;
     }
+
+    public static Material GetMaterial(int i) {
+        return instance.materials[i];
+    }
+
+    // =========================================================================================
+    //  Spawn
+    // =========================================================================================
 
     public static void Exit() {
         if (mode == 0) {
@@ -127,8 +134,8 @@ public class StageNetwork : MonoBehaviour {
         }
     }
 
-    public static Material GetMaterial(int i) {
-        return instance.materials[i];
+    public static void Despawn(GameObject obj) {
+        obj.GetComponent<NetworkObject>().Despawn(true);
     }
 
 }

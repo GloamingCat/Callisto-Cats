@@ -1,5 +1,4 @@
 ﻿using UnityEngine;
-using System.Collections;
 using Unity.Netcode;
 
 public class Spit : MonoBehaviour {
@@ -14,36 +13,50 @@ public class Spit : MonoBehaviour {
 	}
 
 	private void Start () {
+		// Change color according to shooter.
 		owner = StageNetwork.FindOwner(gameObject);
 		meshRenderer.material = owner.transform.GetChild(0).GetComponent<MeshRenderer>().material;
-		if (NetworkManager.Singleton.IsConnectedClient)
-			return;
-		GetComponent<Rigidbody> ().velocity = transform.forward * speed;
-		Destroy (gameObject, lifeTime);
+		// Start ghost.
+		GetComponent<Rigidbody>().velocity = transform.forward * speed;
+		// Server sets the time limit.
+		if (StageNetwork.mode != 2) {
+			Invoke("Despawn", lifeTime);
+		}
 	}
 
 	private void OnTriggerEnter(Collider other) {
-		if (NetworkManager.Singleton.IsConnectedClient)
+		// Server only.
+		if (StageNetwork.mode == 2)
 			return;
 		if (other.CompareTag("Enemy")) {
+			// Collided with an enemy.
 			other.gameObject.GetComponent<Cat>().Damage(10, transform.position);
-			Destroy (gameObject);
+			Despawn();
 		} else if (other.CompareTag("Player")) {
-			if (StageNetwork.pvp) {
-				if (other.gameObject != owner) {
-					if (StageController.instance.IsLocalPlayer(other.gameObject)) {
-						// Server
-						StageController.instance.Damage(10, transform.position);
-                    } else {
-						// Remote client
-						other.gameObject.GetComponent<NetworkCat>().DamageClientRpc(10, transform.position);
-					}
-					Destroy(gameObject);
+			// Collided with a player.
+			if (StageController.killMode < 2 && other.gameObject != owner) {
+				// Collided with an opponent player.
+				if (StageController.instance.IsLocalPlayer(other.gameObject)) {
+					// Host player.
+					StageController.instance.Damage(10, transform.position);
+                } else {
+					// Ghost player.
+					other.gameObject.GetComponent<NetworkCat>().DamageClientRpc(10, transform.position);
 				}
 			}
+			Despawn();
 		} else if (!other.CompareTag("Apple") && !other.CompareTag("Star")) {
-			Destroy(gameObject);
+			// Collided with something else.
+			Despawn();
 		}
+	}
+
+	private void Despawn() {
+		// Server only.
+		if (StageNetwork.mode == 0)
+			Destroy(gameObject);
+		else 
+			StageNetwork.Despawn(gameObject);
 	}
 
 }

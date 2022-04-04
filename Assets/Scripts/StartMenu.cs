@@ -3,12 +3,18 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using System;
 
-public class StartMenu : MonoBehaviour
-{
+public class StartMenu : MonoBehaviour {
 
-    public InputField portInput;
+    // Host
+    public InputField listenPortInput;
+    public InputField timeInput;
+    public Dropdown modeDropdown;
+    public Toggle respawn;
+
+    // Join
     public InputField ipInput;
-
+    public InputField portInput;
+    public Dropdown colorDropdown;
 
     // =========================================================================================
     //	General
@@ -16,6 +22,7 @@ public class StartMenu : MonoBehaviour
 
     public void PlaySingle() {
         StageNetwork.mode = 0;
+        StageController.killMode = 2;
         SceneManager.LoadScene(1);
     }
 
@@ -29,9 +36,11 @@ public class StartMenu : MonoBehaviour
 
     public void HostRoom() {
         StageNetwork.mode = 1;
-        StageNetwork.port = Int32.Parse(portInput.text);
+        StageNetwork.port = Int32.Parse(listenPortInput.text);
         StageNetwork.ip = ipInput.text;
         StageNetwork.material = 0;
+        StageController.killMode = modeDropdown.value;
+        StageController.timeLimit = Single.Parse(timeInput.text);
         SceneManager.LoadScene(1);
     }
 
@@ -39,9 +48,8 @@ public class StartMenu : MonoBehaviour
         StageNetwork.mode = 2;
         StageNetwork.port = Int32.Parse(portInput.text);
         StageNetwork.ip = ipInput.text;
-        StageNetwork.material = UnityEngine.Random.Range(2, 6);
+        StageNetwork.material = 2 + colorDropdown.value;
         SceneManager.LoadScene(1);
     }
-
 
 }

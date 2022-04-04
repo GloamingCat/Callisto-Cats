@@ -1,28 +1,39 @@
-﻿using UnityEngine;
-using UnityEngine.UI;
+﻿using System;
+using TMPro;
+using UnityEngine;
 
 public class StageController : MonoBehaviour {
 
 	public static StageController instance;
 	private Cat player;
+	private CameraControl mainCamera;
+	public Vector3 initialPosition = new Vector3(17.13f, 0.642f, 25);
 
+	// State
 	public bool paused = false;
 	public bool gameOver = false;
+	public float startTime = 0;
 
-	public Text centerText;
-	public Text lifeText;
-	public Text manaText;
-	public Text netInfoText;
+	// Initial Menu Params (gameplay)
+	public static int killMode = 0;
+	public static float timeLimit = -10;
+	public static bool respawn = true;
 
+	// Menu
+	public TextMeshProUGUI centerText;
+	public TextMeshProUGUI lifeText;
+	public TextMeshProUGUI manaText;
+	public TextMeshProUGUI netInfoText;
+	public TextMeshProUGUI countdownText;
+	public GameObject respawnButton;
+
+	// Audio
 	public AudioClip rollSound;
 	public AudioClip jumpSound;
 	public AudioClip damageSound;
 	public AudioClip spitSound;
 	public AudioClip eatSound;
 	public AudioClip starSound;
-
-	private CameraControl mainCamera;
-	public Vector3 initialPosition = new Vector3(17.13f, 0.642f, 25);
 
 	private void Awake() {
         instance = this;
@@ -31,6 +42,9 @@ public class StageController : MonoBehaviour {
     private void Start() {
 		netInfoText.text = StageNetwork.GetNetInfo();
 		mainCamera = FindObjectOfType<CameraControl>();
+		startTime = Time.time;
+		countdownText.text = "";
+		respawnButton.SetActive(false);
 	}
 
 	public bool IsLocalPlayer(GameObject obj) {
@@ -83,7 +97,12 @@ public class StageController : MonoBehaviour {
 				player.GetComponent<NetworkCat>().OnPause(!paused);
 			}
 		}
-		if (paused || gameOver)
+		if (paused)
+			return;
+		if (timeLimit >= 0 && Time.timeScale > 0) {
+			UpdateCountdown();
+		}
+		if (gameOver)
 			return;
 		// Shoot
 		if (player.manaPoints > 0) {
@@ -105,6 +124,16 @@ public class StageController : MonoBehaviour {
 				AudioSource.PlayClipAtPoint(jumpSound, transform.position);
 			}
 		}
+	}
+
+	private void UpdateCountdown() {
+		float remainingTime = timeLimit - (Time.time - startTime);
+		if (remainingTime <= 0) {
+			remainingTime = 0;
+			GameOver(true);
+        }
+		var ts = TimeSpan.FromSeconds(remainingTime);
+		countdownText.text = string.Format("{0:00}:{1:00}", ts.Minutes, ts.Seconds);
 	}
 
 	// =========================================================================================
@@ -144,6 +173,7 @@ public class StageController : MonoBehaviour {
 	}
 
 	public void RespawnPlayer() {
+		respawnButton.SetActive(false);
 		player.transform.position = initialPosition;
 		player.ResetState();
 		ResetMenu(player.lifePoints, player.manaPoints);
@@ -168,18 +198,47 @@ public class StageController : MonoBehaviour {
 		if (paused) {
 			Time.timeScale = 0;
 			centerText.text = "Paused";
+			if (timeLimit >= 0)
+				timeLimit -= Time.time - startTime;
 		} else {
 			Time.timeScale = 1;
 			centerText.text = "";
+			if (timeLimit >= 0)
+				startTime = Time.time;
 		}
 	}
 
-	public void GameOver() {
+	public void GameOver(bool timeout = false) {
+		centerText.text = timeout ? "TIMEOUT" : "YOU DEADED";
 		mainCamera.target = null;
-		if (StageNetwork.mode == 0) 
-			Time.timeScale = 0;
 		gameOver = true;
-		centerText.text = "Game Over";
+		if (StageNetwork.mode == 0) {
+			Time.timeScale = 0;
+			return;
+		} else if (StageNetwork.mode == 1) {
+			if (timeout) {
+				player.GetComponent<NetworkCat>().GameOverClientRpc(true);
+            } else {
+				if (respawn) {
+					respawnButton.SetActive(true);
+					return;
+				}
+				foreach (Cat cat in FindObjectsOfType<Cat>()) {
+					if (!cat.dead && cat.gameObject.CompareTag("Player")) {
+						return;
+					}
+				}
+				PartyGameOver();
+				player.GetComponent<NetworkCat>().GameOverClientRpc(false);
+			}
+		}
+	}
+
+	public void PartyGameOver(bool timeout = false) {
+		mainCamera.target = null;
+		gameOver = true;
+		Time.timeScale = 0;
+		centerText.text = timeout ? "TIMEOUT" : "EVERYBODY DEADED"; ;
 	}
 
 	public void Exit() {

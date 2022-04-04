@@ -281,10 +281,10 @@ public class Cat : MonoBehaviour {
 	}
 
 	public void OnDieEnd() {
-		SetState(5);
-		if (netCat)
-			netCat.OnStateChange(5);
 		if (StageController.instance.IsLocalPlayer(gameObject)) {
+			SetState(5);
+			if (netCat)
+				netCat.OnStateChange(5);
 			StageController.instance.GameOver();
         }
 	}

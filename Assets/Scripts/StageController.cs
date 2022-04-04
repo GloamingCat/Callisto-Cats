@@ -16,7 +16,7 @@ public class StageController : MonoBehaviour {
 
 	// Initial Menu Params (gameplay)
 	public static int killMode = 0;
-	public static float timeLimit = -10;
+	public static float timeLimit = 300;
 	public static bool respawn = true;
 
 	// Menu
@@ -90,19 +90,17 @@ public class StageController : MonoBehaviour {
 	private void Update() {
 		if (player == null)
 			return;
-		if (Input.GetButtonDown("Pause")) {
+		if (!gameOver && Input.GetButtonDown("Pause")) {
 			if (StageNetwork.mode == 0) {
 				SetPaused(!paused);
 			} else {
 				player.GetComponent<NetworkCat>().OnPause(!paused);
 			}
 		}
-		if (paused)
-			return;
-		if (timeLimit >= 0 && Time.timeScale > 0) {
+		if (!paused && timeLimit >= 0) {
 			UpdateCountdown();
 		}
-		if (gameOver)
+		if (paused || gameOver)
 			return;
 		// Shoot
 		if (player.manaPoints > 0) {
@@ -127,13 +125,29 @@ public class StageController : MonoBehaviour {
 	}
 
 	private void UpdateCountdown() {
-		float remainingTime = timeLimit - (Time.time - startTime);
-		if (remainingTime <= 0) {
-			remainingTime = 0;
+		timeLimit -= (Time.time - startTime);
+		startTime = Time.time;
+		if (timeLimit <= 0) {
+			timeLimit = 0;
 			GameOver(true);
         }
-		var ts = TimeSpan.FromSeconds(remainingTime);
+		var ts = TimeSpan.FromSeconds(timeLimit);
 		countdownText.text = string.Format("{0:00}:{1:00}", ts.Minutes, ts.Seconds);
+	}
+
+	public void SetPaused(bool value) {
+		paused = value;
+		if (paused) {
+			Time.timeScale = 0;
+			centerText.text = "PAUSED";
+			if (timeLimit >= 0)
+				timeLimit -= Time.time - startTime;
+		} else {
+			Time.timeScale = 1;
+			centerText.text = "";
+			if (timeLimit >= 0)
+				startTime = Time.time;
+		}
 	}
 
 	// =========================================================================================
@@ -168,7 +182,7 @@ public class StageController : MonoBehaviour {
 		player.manaPoints--;
 		StageNetwork.Spawn(0, player.transform, player.GetComponent<NetworkCat>());
 		if (spitSound != null)
-			AudioSource.PlayClipAtPoint(spitSound, transform.position);
+			AudioSource.PlayClipAtPoint(spitSound, player.transform.position);
 		UpdateManaText(player.manaPoints);
 	}
 
@@ -191,21 +205,6 @@ public class StageController : MonoBehaviour {
 		centerText.text = "";
 		UpdateLifeText(lifePoints);
 		UpdateManaText(manaPoints);
-	}
-
-	public void SetPaused(bool value) {
-		paused = value;
-		if (paused) {
-			Time.timeScale = 0;
-			centerText.text = "Paused";
-			if (timeLimit >= 0)
-				timeLimit -= Time.time - startTime;
-		} else {
-			Time.timeScale = 1;
-			centerText.text = "";
-			if (timeLimit >= 0)
-				startTime = Time.time;
-		}
 	}
 
 	public void GameOver(bool timeout = false) {

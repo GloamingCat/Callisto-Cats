@@ -21,8 +21,6 @@ public class NetworkCat : NetworkBehaviour {
 		}
 		stateVar.OnValueChanged += delegate (int oldv, int newv) {
 			if (!IsOwner) {
-				//ulong ghostOwnerId = NetworkManager.Singleton.LocalClientId;
-				//Debug.Log("Apply state change of player " + OwnerClientId + " on ghost of " + ghostOwnerId + ": " + newi);
 				cat.SetState(newv);
 			}
 		};
@@ -49,14 +47,14 @@ public class NetworkCat : NetworkBehaviour {
 				transform.position.z, StageNetwork.material);
 			if (IsServer) {
 				initVar.Value = init;
-				gameObject.name = "Player (Server)";
+				gameObject.name = "Player " + OwnerClientId + " (Server)";
 			} else {
 				InitServerRpc(init);
-				gameObject.name = "Player";
+				gameObject.name = "Player " + OwnerClientId;
 			}
 		} else {
 			// Player ghost.
-			gameObject.name = "Player (Ghost)";
+			gameObject.name = "Player " + OwnerClientId + " (Ghost)";
 			if (IsServer) {
 				// Sent to the owner the game rules.
 				ClientRpcParams clientRpcParams = new ClientRpcParams {
@@ -74,7 +72,7 @@ public class NetworkCat : NetworkBehaviour {
 	}
 
 	public override void OnNetworkDespawn() {
-		if (!IsOwner)
+		if (!StageController.instance.IsLocalPlayer(gameObject))
 			return;
 		StageNetwork.mode = 0;
 		StageNetwork.Exit();
@@ -96,7 +94,6 @@ public class NetworkCat : NetworkBehaviour {
 
 	public void OnStateChange(int i) {
 		if (IsOwner) {
-			//Debug.Log("Warn server of new state of player " + OwnerClientId + ": " + i);
 			ChangeStateServerRpc(i);
 		}
 	}
@@ -166,8 +163,6 @@ public class NetworkCat : NetworkBehaviour {
 
 	[ServerRpc]
 	public void ChangeStateServerRpc(int id) {
-		//Debug.Log("Warned of state change of player" + OwnerClientId + ": " + id);
-		//character.SetState(id);
 		stateVar.Value = id;
 	}
 

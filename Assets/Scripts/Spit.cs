@@ -15,8 +15,9 @@ public class Spit : MonoBehaviour {
 	private void Start () {
 		// Change color according to shooter.
 		owner = StageNetwork.FindOwner(gameObject);
+		gameObject.name = "Spit (" + owner.name + ")";
 		meshRenderer.material = owner.transform.GetChild(0).GetComponent<MeshRenderer>().material;
-		// Start ghost.
+		Debug.Log(transform.forward);
 		GetComponent<Rigidbody>().velocity = transform.forward * speed;
 		// Server sets the time limit.
 		if (StageNetwork.mode != 2) {
@@ -35,6 +36,7 @@ public class Spit : MonoBehaviour {
 		} else if (other.CompareTag("Player")) {
 			// Collided with a player.
 			if (StageController.killMode < 2 && other.gameObject != owner) {
+				Debug.Log(gameObject.name + " collided with " + other.gameObject.name);
 				// Collided with an opponent player.
 				if (StageController.instance.IsLocalPlayer(other.gameObject)) {
 					// Host player.
@@ -43,8 +45,8 @@ public class Spit : MonoBehaviour {
 					// Ghost player.
 					other.gameObject.GetComponent<NetworkCat>().DamageClientRpc(10, transform.position);
 				}
+				Despawn();
 			}
-			Despawn();
 		} else if (!other.CompareTag("Apple") && !other.CompareTag("Star")) {
 			// Collided with something else.
 			Despawn();
@@ -56,7 +58,7 @@ public class Spit : MonoBehaviour {
 		if (StageNetwork.mode == 0)
 			Destroy(gameObject);
 		else 
-			StageNetwork.Despawn(gameObject);
+			StageNetwork.ServerDespawn(gameObject);
 	}
 
 }

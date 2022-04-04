@@ -17,12 +17,12 @@ public class Apple : MonoBehaviour {
 			if (StageController.instance.IsLocalPlayer(other.gameObject)) {
 				// Collides with host player.
 				StageController.instance.EatApple();
-				StageNetwork.Despawn(gameObject);
+				StageNetwork.ServerDespawn(gameObject);
 			} else {
 				// Collides with ghost player.
 				NetworkCat netPlayer = other.gameObject.GetComponent<NetworkCat>();
 				netPlayer.EatClientRpc();
-				StageNetwork.Despawn(gameObject);
+				StageNetwork.ServerDespawn(gameObject);
 			}
 		}
 	}

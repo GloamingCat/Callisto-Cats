@@ -106,15 +106,13 @@ public class StageNetwork : MonoBehaviour {
     }
 
     public static void Spawn(int id, Transform transform, NetworkCat owner) {
-        if (NetworkManager.Singleton.IsClient) {
-            if (NetworkManager.Singleton.IsServer) {
-                GameObject obj = Instantiate(instance.prefabs[id], transform.position, transform.rotation);
-                obj.GetComponent<NetworkObject>().Spawn();
-            } else {
-                owner.InstantiateServerRpc(id, transform.position, transform.rotation);
-            }
-        } else {
+        if (mode == 0) {
             Instantiate(instance.prefabs[id], transform.position, transform.rotation);
+        } else if (mode == 1) {
+            GameObject obj = Instantiate(instance.prefabs[id], transform.position, transform.rotation);
+            obj.GetComponent<NetworkObject>().Spawn();
+        } else {
+            owner.InstantiateServerRpc(id, transform.position, transform.rotation);
         }
     }
 
@@ -134,8 +132,9 @@ public class StageNetwork : MonoBehaviour {
         }
     }
 
-    public static void Despawn(GameObject obj) {
-        obj.GetComponent<NetworkObject>().Despawn(true);
+    public static void ServerDespawn(GameObject obj) {
+        obj.GetComponent<NetworkObject>().Despawn();
+        Destroy(obj);
     }
 
 }

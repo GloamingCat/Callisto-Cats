@@ -70,7 +70,11 @@ public class Enemy : MonoBehaviour {
 
 	protected void OnDieEnd() {
 		// Server only (from animator).
-		StageNetwork.Despawn(gameObject);
+		if (StageNetwork.mode == 0) {
+			Destroy(gameObject);
+        } else if (StageNetwork.mode == 1) {
+			StageNetwork.ServerDespawn(gameObject);
+		}
 	}
 
 }

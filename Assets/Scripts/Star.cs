@@ -12,9 +12,8 @@ public class Star : MonoBehaviour {
 	}
 
 	void OnTriggerEnter(Collider other) {
-		Player player = other.gameObject.GetComponent<Player>();
-		if (player != null) {
-			player.GrabStar();
+		if (StageController.instance.IsLocalPlayer(other.gameObject)) {
+			StageController.instance.GrabStar();
 			Destroy(gameObject);
 		}
 	}

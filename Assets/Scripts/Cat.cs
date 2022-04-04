@@ -1,16 +1,19 @@
 using UnityEngine;
 
-public class Character : MonoBehaviour {
+[RequireComponent(typeof(CharacterController))]
+[RequireComponent(typeof(Animator))]
+public class Cat : MonoBehaviour {
 
 	// Components
 	private Animator animator;
 	private CharacterController controller;
+	private NetworkCat netCat;
 
 	// Constants
 	private static readonly string[] stateAnimations = new string[] { "Idle", "Jump", "Land", "Roll", "Die", "Deaded" };
 	public static int maxLifePoints = 30;
 	public static float gravity = 0.25f;
-	public static float damageTime = 0.5f;
+	public static float damageTime = 2f;
 	public float moveSpeed = 5;
 	public float jumpSpeed = 2.5f;
 
@@ -20,6 +23,7 @@ public class Character : MonoBehaviour {
 	public bool jumping { get; private set; }
 	public bool landing { get; private set; }
 	public bool damaging { get; private set; }
+	public bool invincible { get; private set; }
 	public bool dying { get; private set; }
 	public bool dead { get; private set; }
 	public bool rolling { get; private set; }
@@ -28,14 +32,16 @@ public class Character : MonoBehaviour {
 	public Vector3 boost { get; private set; }
 	public bool bigJumping { get; private set; }
 	public float bigJumpSpeed = 6;
+	public static float bigJumpDelay = 0.01f;
 
 	// Fire
 	public static int maxManaPoints = 20;
 	public int manaPoints;
 
 	private void Awake() {
-		controller = GetComponent<CharacterController> ();
-		animator = GetComponent<Animator> ();
+		controller = GetComponent<CharacterController>();
+		animator = GetComponent<Animator>();
+		netCat = GetComponent<NetworkCat>();
 		ResetState();
 	}
 
@@ -74,6 +80,7 @@ public class Character : MonoBehaviour {
 		boost = Vector3.zero;
 		jumping = false;
 		damaging = false;
+		invincible = false;
 		dying = false;
 		dead = false;
 		landing = false;
@@ -87,7 +94,7 @@ public class Character : MonoBehaviour {
 			ResetState();
 			return;
 		}
-		if (i != 6)
+		if (i < 6)
 			animator.Play(stateAnimations[i], 0, 0);
 		if (i == 1) {
 			jumping = true;
@@ -98,17 +105,21 @@ public class Character : MonoBehaviour {
 		} else if (i == 3) {
 			rolling = true;
 		} else if (i == 4) {
+			jumping = false;
 			dying = true;
         } else if (i == 5) {
 			dying = false;
 			dead = true;
         } else if (i == 6) {
 			damaging = true;
+			invincible = true;
+		} else if (i == 7) {
+			invincible = false;
 		}
 	}
 
 	public bool IsVisible(Transform other, float vision) {
-		if (dying || dead)
+		if (dying || dead || damaging || invincible)
 			return false;
 		float distance = (transform.position - other.position).magnitude;
 		return distance < vision;
@@ -126,7 +137,7 @@ public class Character : MonoBehaviour {
 	//	Movement
 	// =========================================================================================
 
-	public virtual void Move(float dx, float dz) {
+	public void BounceMove(float dx, float dz) {
 		Vector3 transformedVector = AdjustedVector (dx, dz);
 		SetDirection (transformedVector.x, transformedVector.z);
 		if (!jumping)
@@ -149,19 +160,24 @@ public class Character : MonoBehaviour {
 		transform.eulerAngles = new Vector3(0, transform.eulerAngles.y, 0);
 	}
 
+	public void Move(Vector3 pos) {
+		controller.Move(pos);
+    }
+
 	public void ResetMoveVector() {
 		moveVector.x = 0;
 		moveVector.z = 0;
 	}
 
 	// =========================================================================================
-	//	Jump
+	//	Jump / Roll
 	// =========================================================================================
 
 	public void Jump() {
 		if (!dying) {
 			SetState(1);
-			BroadcastMessage("OnStateChange", 1, SendMessageOptions.DontRequireReceiver);
+			if (netCat)
+				netCat.OnStateChange(1);
 			moveVector.y = jumpSpeed * Time.deltaTime;
 		}
 		OnRollEnd();
@@ -172,7 +188,8 @@ public class Character : MonoBehaviour {
 			boost = Vector3.zero;
 			if (!dying) {
 				SetState(2);
-				BroadcastMessage("OnStateChange", 2, SendMessageOptions.DontRequireReceiver);
+				if (netCat)
+					netCat.OnStateChange(2);
 			}
 		} else {
 			OnJumpEnd();
@@ -181,16 +198,14 @@ public class Character : MonoBehaviour {
 
 	public void DieByCliff() {
 		Destroy (gameObject, 1);
-		BroadcastMessage("OnStateChange", 5, SendMessageOptions.DontRequireReceiver);
+		if (netCat)
+			netCat.OnStateChange(5);
 	}
-
-	// =========================================================================================
-	//	Roll
-	// =========================================================================================
 
 	public void Roll() {
 		SetState(3);
-		BroadcastMessage("OnStateChange", 3, SendMessageOptions.DontRequireReceiver);
+		if (netCat)
+			netCat.OnStateChange(3);
 		boost = transform.forward * Time.fixedDeltaTime * moveSpeed * 2;
 		OnJumpEnd();
 	}
@@ -201,7 +216,7 @@ public class Character : MonoBehaviour {
 		moveVector.y = bigJumpSpeed * Time.fixedDeltaTime;
 	}
 
-	public void AllowBigJump() {
+	public void EndBigJump() {
 		bigJumping = false;
 	} 
 
@@ -210,27 +225,31 @@ public class Character : MonoBehaviour {
 	// =========================================================================================
 
 	public void Damage(int points, Vector3 origin) {
-		if (!damaging && !dying) {
-			Vector3 direction = (origin - transform.position).normalized;
-			if ((direction - Vector3.down).magnitude < 0.1f) {
-				int r = Random.Range(0, 4);
-				direction.x += r >= 2 ? -1 : 1;
-				direction.z += r % 2 == 0 ? -1 : 1;
-			}
-			SetDirection (direction.x, direction.z);
-			SetState(6);
-			moveVector.x *= -2;
-			moveVector.z *= -2;
-			lifePoints = Mathf.Max(0, lifePoints - points);
-			Jump();
-			Invoke("OnDamageEnd", damageTime);
+		if (damaging || dying || invincible)
+			return;
+		Vector3 direction = (origin - transform.position).normalized;
+		if ((direction - Vector3.down).magnitude < 0.1f) {
+			int r = Random.Range(0, 4);
+			direction.x += r >= 2 ? -1 : 1;
+			direction.z += r % 2 == 0 ? -1 : 1;
 		}
+		SetDirection (direction.x, direction.z);
+		SetState(6);
+		if (netCat)
+			netCat.OnStateChange(6);
+		moveVector.x *= -2;
+		moveVector.z *= -2;
+		lifePoints = Mathf.Max(0, lifePoints - points);
+		invincible = true;
+		Invoke("EndInvincibility", damageTime);
+		Jump();
 	}
 
 	public void Die() {
 		if (!dying) {
 			SetState(4);
-			BroadcastMessage("OnStateChange", 4, SendMessageOptions.DontRequireReceiver);
+			if (netCat)
+				netCat.OnStateChange(4);
 			animator.Play("Die");
 		}
 	}
@@ -242,6 +261,16 @@ public class Character : MonoBehaviour {
 	protected void OnJumpEnd() {
 		landing = false;
 		jumping = false;
+		if (damaging) {
+			damaging = false;
+			if (lifePoints <= 0) {
+				lifePoints = 0;
+				Die();
+			} else if (netCat)
+				netCat.OnStateChange(0);
+		} else if (netCat)
+			netCat.OnStateChange(0);
+		Invoke("EndBigJump", bigJumpDelay);
 	}
 
 	protected void OnRollEnd() {
@@ -251,18 +280,20 @@ public class Character : MonoBehaviour {
 		}
 	}
 
-	protected void OnDamageEnd() {
-		if (lifePoints <= 0) {
-			lifePoints = 0;
-			Die();
-		}
-		damaging = false;
-	}
-
 	public void OnDieEnd() {
 		SetState(5);
-		BroadcastMessage("OnStateChange", 5, SendMessageOptions.DontRequireReceiver);
+		if (netCat)
+			netCat.OnStateChange(5);
+		if (StageController.instance.IsLocalPlayer(gameObject)) {
+			StageController.instance.GameOver();
+        }
 	}
+
+	public void EndInvincibility() {
+		invincible = false;
+		if (netCat)
+			netCat.OnStateChange(7);
+    }
 
 	// =========================================================================================
 	//	Platform
@@ -280,14 +311,16 @@ public class Character : MonoBehaviour {
 		if (activePlatform != null) {
 			Vector3 newGlobalPlatformPoint = activePlatform.TransformPoint(activeLocalPlatformPoint);
 			Vector3 moveDistance = (newGlobalPlatformPoint - activeGlobalPlatformPoint);
-			if (moveDistance != Vector3.zero)
-				controller.Move(moveDistance);
+			controller.Move(moveDistance);
 
 			Quaternion newGlobalPlatformRotation = activePlatform.rotation * activeLocalPlatformRotation;
 			Quaternion rotationDiff = newGlobalPlatformRotation * Quaternion.Inverse(activeGlobalPlatformRotation);
 
 			rotationDiff = Quaternion.FromToRotation(rotationDiff * transform.up, transform.up) * rotationDiff;
 			transform.rotation = rotationDiff * transform.rotation;
+
+			if (moveDistance != Vector3.zero && netCat != null)
+				netCat.OnMove();
 		}
 		activePlatform = null;
 
@@ -299,12 +332,21 @@ public class Character : MonoBehaviour {
 			activeGlobalPlatformRotation = transform.rotation;
 			activeLocalPlatformRotation = Quaternion.Inverse(activePlatform.rotation) * transform.rotation; 
 		}
+
+		if (moveVector != Vector3.zero && netCat != null) {
+			netCat.OnMove();
+		}
+
 	}
-	
-	protected void OnControllerColliderHit (ControllerColliderHit hit) {
+	protected void OnControllerColliderHit(ControllerColliderHit hit) {
 		if (hit.moveDirection.y < -0.9f && hit.normal.y > 0.5f) {
-			activePlatform = hit.collider.transform;  
+			activePlatform = hit.collider.transform;
+		}
+		if (StageController.instance.IsLocalPlayer(gameObject) && hit.gameObject.CompareTag("Enemy")) {
+			//Debug.Log("Local player collided with enemy");
+			//StageController.instance.Damage(10, transform.position);
 		}
 	}
+
 
 }

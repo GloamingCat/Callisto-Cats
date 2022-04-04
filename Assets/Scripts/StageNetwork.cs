@@ -4,7 +4,9 @@ using Unity.Netcode.Transports.UNET;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-public class StageManager : MonoBehaviour {
+public class StageNetwork : MonoBehaviour {
+
+    private static StageNetwork instance;
 
     // Network
     private static NetworkManager networkManager;
@@ -17,7 +19,12 @@ public class StageManager : MonoBehaviour {
     public static string ip = "127.0.0.1";
     public static int port = 7777;
 
+    // Stage Specific
+    public GameObject[] prefabs;
+    public Material[] materials;
+
     private void Awake() {
+        instance = this;
         networkManager = GetComponent<NetworkManager>();
         networkTransport = GetComponent<UNetTransport>();
         if (mode == -1) {
@@ -37,7 +44,8 @@ public class StageManager : MonoBehaviour {
     private void Start() {
         if (mode == 0) {
             // Offline
-            Instantiate(networkManager.NetworkConfig.PlayerPrefab).GetComponent<Player>();
+            GameObject obj = Instantiate(networkManager.NetworkConfig.PlayerPrefab);
+            StageController.instance.SetLocalPlayer(obj);
         } else if (mode == 1) {
             // Host
             networkTransport.ServerListenPort = port;
@@ -57,14 +65,14 @@ public class StageManager : MonoBehaviour {
             if (networkManager.IsConnectedClient)
                 return "Client to address " + ip + ":" + port;
             else
-                return "Conecting to address " + ip + ":" + port;
+                return "Connecting to address " + ip + ":" + port;
         }
         return "";
     }
 
     public static GameObject FindOwner(GameObject obj) {
         if (mode == 0)
-            return Player.instance.gameObject;
+            return GameObject.FindGameObjectWithTag("Player");
         ulong ownerId = obj.GetComponent<NetworkObject>().OwnerClientId;
         foreach (GameObject player in GameObject.FindGameObjectsWithTag("Player")) {
             if (player.GetComponent<NetworkObject>().OwnerClientId == ownerId) {
@@ -88,6 +96,39 @@ public class StageManager : MonoBehaviour {
             mode = 0;
             NetworkManager.Singleton.Shutdown();
         }
+    }
+
+    public static void Spawn(int id, Transform transform, NetworkCat owner) {
+        if (NetworkManager.Singleton.IsClient) {
+            if (NetworkManager.Singleton.IsServer) {
+                GameObject obj = Instantiate(instance.prefabs[id], transform.position, transform.rotation);
+                obj.GetComponent<NetworkObject>().Spawn();
+            } else {
+                owner.InstantiateServerRpc(id, transform.position, transform.rotation);
+            }
+        } else {
+            Instantiate(instance.prefabs[id], transform.position, transform.rotation);
+        }
+    }
+
+    public static void ServerSpawn(int prefabId, ulong ownerId, Vector3 position, Quaternion rotation) {
+        GameObject inst = Instantiate(instance.prefabs[prefabId], position, rotation);
+        inst.GetComponent<NetworkObject>().Spawn();
+        inst.GetComponent<NetworkObject>().ChangeOwnership(ownerId);
+    }
+
+    public static void RespawnPlayer(NetworkCat player) {
+        if (NetworkManager.Singleton.IsClient) {
+            if (NetworkManager.Singleton.IsServer) {
+                player.stateVar.Value = 0;
+            } else {
+                player.RespawnServerRpc();
+            }
+        }
+    }
+
+    public static Material GetMaterial(int i) {
+        return instance.materials[i];
     }
 
 }

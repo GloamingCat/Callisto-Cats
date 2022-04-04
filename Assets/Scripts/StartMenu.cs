@@ -15,7 +15,7 @@ public class StartMenu : MonoBehaviour
     // =========================================================================================
 
     public void PlaySingle() {
-        StageManager.mode = 0;
+        StageNetwork.mode = 0;
         SceneManager.LoadScene(1);
     }
 
@@ -28,18 +28,18 @@ public class StartMenu : MonoBehaviour
     // =========================================================================================
 
     public void HostRoom() {
-        StageManager.mode = 1;
-        StageManager.port = Int32.Parse(portInput.text);
-        StageManager.ip = ipInput.text;
-        StageManager.material = 0;
+        StageNetwork.mode = 1;
+        StageNetwork.port = Int32.Parse(portInput.text);
+        StageNetwork.ip = ipInput.text;
+        StageNetwork.material = 0;
         SceneManager.LoadScene(1);
     }
 
     public void JoinRoom() {
-        StageManager.mode = 2;
-        StageManager.port = Int32.Parse(portInput.text);
-        StageManager.ip = ipInput.text;
-        StageManager.material = UnityEngine.Random.Range(1, 6);
+        StageNetwork.mode = 2;
+        StageNetwork.port = Int32.Parse(portInput.text);
+        StageNetwork.ip = ipInput.text;
+        StageNetwork.material = UnityEngine.Random.Range(2, 6);
         SceneManager.LoadScene(1);
     }
 

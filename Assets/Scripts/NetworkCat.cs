@@ -1,61 +1,87 @@
 using Unity.Netcode;
 using UnityEngine;
 
-public class NetworkPlayer : NetworkBehaviour {
-
-	public Material[] materials;
+[RequireComponent(typeof(Cat))]
+public class NetworkCat : NetworkBehaviour {
 	
-	public NetworkVariable<int> matVar = new NetworkVariable<int>(0);
+	// Ghost variables
+	public NetworkVariable<Vector4> initVar = new NetworkVariable<Vector4>(0);
 	public NetworkVariable<int> stateVar = new NetworkVariable<int>(0);
+	public NetworkVariable<Vector4> moveVar = new NetworkVariable<Vector4>();
 
-	private Character character;
-	private Player player = null;
+	private Cat cat;
 
     private void Awake() {
-		character = GetComponent<Character>();
-		matVar.OnValueChanged += delegate (int oldi, int newi) {
-			MeshRenderer renderer = transform.GetChild(0).GetComponent<MeshRenderer>();
-			renderer.material = materials[newi];
-		};
-		stateVar.OnValueChanged += delegate (int oldi, int newi) {
+		if (CompareTag("Player")) {
+			initVar.OnValueChanged += delegate (Vector4 oldv, Vector4 newv) {
+				transform.position = newv;
+				MeshRenderer renderer = transform.GetChild(0).GetComponent<MeshRenderer>();
+				renderer.material = StageNetwork.GetMaterial((int) newv.w);
+			};
+		}
+		stateVar.OnValueChanged += delegate (int oldv, int newv) {
 			if (!IsOwner) {
-				ulong ghostOwnerId = NetworkManager.Singleton.LocalClientId;
+				//ulong ghostOwnerId = NetworkManager.Singleton.LocalClientId;
 				//Debug.Log("Apply state change of player " + OwnerClientId + " on ghost of " + ghostOwnerId + ": " + newi);
-				character.SetState(newi);
+				cat.SetState(newv);
 			}
 		};
+		moveVar.OnValueChanged += delegate (Vector4 oldv, Vector4 newv) {
+			if (!IsOwner) {
+				Vector3 diff = newv;
+				diff -= transform.position;
+				cat.Move(diff);
+				Vector3 eulerAngles = transform.eulerAngles;
+				eulerAngles.y = newv.w;
+				transform.eulerAngles = eulerAngles;
+			}
+		};
+		cat = GetComponent<Cat>();
 	}
 
 	public override void OnNetworkSpawn() {
+		if (!CompareTag("Player"))
+			return;
 		if (IsOwner) {
-			player = GetComponent<Player>();
+			StageController.instance.SetLocalPlayer(gameObject);
+			Vector4 init = new Vector4(transform.position.x, transform.position.y,
+				transform.position.z, StageNetwork.material);
 			if (IsServer) {
-				matVar.Value = StageManager.material;
+				initVar.Value = init;
 				gameObject.name = "Player (Server)";
 			} else {
-				InitServerRpc(StageManager.material);
+				InitServerRpc(init);
 				gameObject.name = "Player";
 			}
 			if (!IsServer)
 				PauseServerRpc(false);
 		} else {
-			Destroy(GetComponent<Player>());
 			gameObject.name = "Player (Ghost)";
 		}
 		MeshRenderer renderer = transform.GetChild(0).GetComponent<MeshRenderer>();
-		renderer.material = materials[matVar.Value];
+		renderer.material = StageNetwork.GetMaterial((int)initVar.Value.w);
 	}
 
 	public override void OnNetworkDespawn() {
 		if (!IsOwner)
 			return;
-		StageManager.mode = 0;
-		StageManager.Exit();
+		StageNetwork.mode = 0;
+		StageNetwork.Exit();
 	}
 
 	// =========================================================================================
 	//	Triggers
 	// =========================================================================================
+
+	public void OnMove() {
+		Vector4 newPos = new Vector4(transform.position.x, transform.position.y,
+			transform.position.z, transform.eulerAngles.y);
+		if (IsServer) {
+			moveVar.Value = newPos;
+		} else {
+			MoveServerRpc(newPos);
+		}
+    }
 
 	public void OnStateChange(int i) {
 		if (IsOwner) {
@@ -76,21 +102,21 @@ public class NetworkPlayer : NetworkBehaviour {
 	public void DamageClientRpc(int points, Vector3 origin) {
 		if (!IsOwner)
 			return;
-		player.Damage(points, origin);
+		StageController.instance.Damage(points, origin);
 	}
 
 	[ClientRpc]
 	public void EatClientRpc() {
 		if (!IsOwner)
 			return;
-		player.EatApple();
+		StageController.instance.EatApple();
 	}
 
 	[ClientRpc]
 	public void PauseClientRpc(bool value) {
 		if (!IsOwner)
 			return;
-		player.SetPaused(value);
+		StageController.instance.SetPaused(value);
     }
 
 	// =========================================================================================
@@ -98,8 +124,8 @@ public class NetworkPlayer : NetworkBehaviour {
 	// =========================================================================================
 
 	[ServerRpc]
-	public void InitServerRpc(int mat) {
-		matVar.Value = mat;
+	public void InitServerRpc(Vector4 init) {
+		initVar.Value = init;
 	}
 
 	[ServerRpc]
@@ -109,29 +135,34 @@ public class NetworkPlayer : NetworkBehaviour {
 	}
 
 	[ServerRpc]
+	public void MoveServerRpc(Vector4 newPos) {
+		moveVar.Value = newPos;
+	}
+
+	[ServerRpc]
 	public void ChangeStateServerRpc(int id) {
 		//Debug.Log("Warned of state change of player" + OwnerClientId + ": " + id);
-		character.SetState(id);
+		//character.SetState(id);
 		stateVar.Value = id;
 	}
 
 	[ServerRpc]
 	public void PauseServerRpc(bool value) {
-		NetworkPlayer[] players = FindObjectsOfType<NetworkPlayer>();
-		foreach (NetworkPlayer player in players) {
+		NetworkCat[] players = FindObjectsOfType<NetworkCat>();
+		foreach (NetworkCat player in players) {
 			player.PauseClientRpc(value);
 		}
 	}
 
 	[ServerRpc]
 	public void RespawnServerRpc() {
-		character.ResetState();
+		cat.ResetState();
 		stateVar.Value = 0;
 	}
 
 	[ServerRpc]
 	public void InstantiateServerRpc(int prefabId, Vector3 position, Quaternion rotation) {
-		Spawner.instance.ServerSpawn(prefabId, OwnerClientId, position, rotation);
+		StageNetwork.ServerSpawn(prefabId, OwnerClientId, position, rotation);
 	}
 
 }

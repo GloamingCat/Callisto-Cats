@@ -14,7 +14,7 @@ public class Spit : MonoBehaviour {
 	}
 
 	private void Start () {
-		owner = StageManager.FindOwner(gameObject);
+		owner = StageNetwork.FindOwner(gameObject);
 		meshRenderer.material = owner.transform.GetChild(0).GetComponent<MeshRenderer>().material;
 		if (NetworkManager.Singleton.IsConnectedClient)
 			return;
@@ -26,17 +26,17 @@ public class Spit : MonoBehaviour {
 		if (NetworkManager.Singleton.IsConnectedClient)
 			return;
 		if (other.CompareTag("Enemy")) {
-			other.gameObject.GetComponent<Character>().Damage(10, transform.position);
+			other.gameObject.GetComponent<Cat>().Damage(10, transform.position);
 			Destroy (gameObject);
 		} else if (other.CompareTag("Player")) {
-			if (StageManager.pvp) {
+			if (StageNetwork.pvp) {
 				if (other.gameObject != owner) {
-					if (Player.instance.gameObject == other.gameObject) {
+					if (StageController.instance.IsLocalPlayer(other.gameObject)) {
 						// Server
-						Player.instance.Damage(10, transform.position);
+						StageController.instance.Damage(10, transform.position);
                     } else {
 						// Remote client
-						other.gameObject.GetComponent<NetworkPlayer>().DamageClientRpc(10, transform.position);
+						other.gameObject.GetComponent<NetworkCat>().DamageClientRpc(10, transform.position);
 					}
 					Destroy(gameObject);
 				}

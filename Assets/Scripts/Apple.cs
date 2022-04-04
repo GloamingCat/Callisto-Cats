@@ -8,16 +8,16 @@ public class Apple : MonoBehaviour {
 	void OnTriggerEnter(Collider other) {
 		if (NetworkManager.Singleton.IsClient) {
 			if (NetworkManager.Singleton.IsServer) {
-				NetworkPlayer netPlayer = other.gameObject.GetComponent<NetworkPlayer>();
+				NetworkCat netPlayer = other.gameObject.GetComponent<NetworkCat>();
 				if (netPlayer == null) 
 					return;
 				netPlayer.EatClientRpc();
 				Destroy(gameObject);
 			}
 		} else {
-			if (Player.instance.gameObject == other.gameObject) {
+			if (StageController.instance.IsLocalPlayer(other.gameObject)) {
 				// Local player
-				Player.instance.EatApple();
+				StageController.instance.EatApple();
 				Destroy(gameObject);
 				return;
 			}

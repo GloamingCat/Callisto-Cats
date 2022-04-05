@@ -10,26 +10,27 @@ public class Apple : MonoBehaviour {
 	public void ProcessCollision(GameObject obj) {
 		if (!obj.CompareTag("Player"))
 			return;
-		if (StageController.instance.IsLocalPlayer(obj)) {
-			// Collides with host player.
+		if (StageNetwork.mode == 0) {
 			StageController.instance.EatApple();
-			if (StageNetwork.mode == 0)
-				Destroy(gameObject);
-			else
-				StageNetwork.ServerDespawn(gameObject);
+			Destroy(gameObject);
+			return;
 		} else {
-			// Collides with ghost player.
-			NetworkCat netPlayer = obj.GetComponent<NetworkCat>();
-			netPlayer.EatClientRpc(netPlayer.OwnerOnly());
+			if (StageController.instance.IsLocalPlayer(obj)) {
+				// Collides with host player.
+				StageController.instance.EatApple();
+			} else {
+				// Collides with player ghost.
+				NetworkCat netPlayer = obj.GetComponent<NetworkCat>();
+				netPlayer.EatClientRpc(netPlayer.OwnerOnly());
+			}
 			StageNetwork.ServerDespawn(gameObject);
 		}
 	}
 
 	private void OnTriggerEnter(Collider other) {
 		// Server only.
-		if (StageNetwork.mode == 2)
-			return;
-		ProcessCollision(other.gameObject);
+		if (StageNetwork.mode != 2)
+			ProcessCollision(other.gameObject);
 	}
 
 }

@@ -24,33 +24,36 @@ public class Spit : MonoBehaviour {
 		}
 	}
 
-	private void OnTriggerEnter(Collider other) {
-		// Server only.
-		if (StageNetwork.mode == 2)
-			return;
-		if (other.CompareTag("Enemy")) {
+	public void ProcessCollision(GameObject obj) {
+		if (obj.CompareTag("Enemy")) {
 			// Collided with an enemy.
-			other.gameObject.GetComponent<Cat>().Damage(10, transform.position);
+			obj.GetComponent<Cat>().Damage(10, transform.position);
 			Despawn();
-		} else if (other.CompareTag("Player")) {
+		} else if (obj.CompareTag("Player")) {
 			// Collided with a player.
-			if (StageController.killMode < 2 && other.gameObject != owner) {
-				Debug.Log(gameObject.name + " collided with " + other.gameObject.name);
+			if (StageController.killMode < 2 && obj != owner) {
+				Debug.Log(gameObject.name + " collided with " + obj.name);
 				// Collided with an opponent player.
-				if (StageController.instance.IsLocalPlayer(other.gameObject)) {
+				if (StageController.instance.IsLocalPlayer(obj)) {
 					// Host player.
 					StageController.instance.Damage(10, transform.position);
-                } else {
+				} else {
 					// Ghost player.
-					NetworkCat netCat = other.gameObject.GetComponent<NetworkCat>();
+					NetworkCat netCat = obj.GetComponent<NetworkCat>();
 					netCat.DamageClientRpc(10, transform.position, netCat.OwnerOnly());
 				}
 				Despawn();
 			}
-		} else if (!other.CompareTag("Apple") && !other.CompareTag("Star")) {
+		} else if (!obj.CompareTag("Apple") && !obj.CompareTag("Star")) {
 			// Collided with something else.
 			Despawn();
 		}
+	}
+
+	private void OnTriggerStay(Collider other) {
+		// Server only.
+		if (StageNetwork.mode != 2)
+			ProcessCollision(other.gameObject);
 	}
 
 	private void Despawn() {

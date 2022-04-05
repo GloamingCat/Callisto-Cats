@@ -40,11 +40,11 @@ public class StageController : MonoBehaviour {
     }
 
     private void Start() {
-		netInfoText.text = StageNetwork.GetNetInfo();
 		mainCamera = FindObjectOfType<CameraControl>();
 		startTime = Time.time;
 		countdownText.text = "";
 		respawnButton.SetActive(false);
+		netInfoText.text = StageNetwork.GetNetInfo();
 	}
 
 	public bool IsLocalPlayer(GameObject obj) {
@@ -52,12 +52,12 @@ public class StageController : MonoBehaviour {
 	}
 
 	public void SetLocalPlayer(GameObject obj) {
-		netInfoText.text = StageNetwork.GetNetInfo();
 		player = obj.GetComponent<Cat>();
 		player.transform.position = initialPosition;
 		mainCamera.target = player.transform;
 		UpdateLifeText(player.lifePoints);
 		UpdateManaText(player.manaPoints);
+		netInfoText.text = StageNetwork.GetNetInfo();
 	}
 
 	// =========================================================================================
@@ -147,6 +147,7 @@ public class StageController : MonoBehaviour {
 			centerText.text = "";
 			if (timeLimit >= 0)
 				startTime = Time.time;
+			netInfoText.text = StageNetwork.GetNetInfo();
 		}
 	}
 

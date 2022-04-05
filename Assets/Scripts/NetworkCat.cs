@@ -14,6 +14,7 @@ public class NetworkCat : NetworkBehaviour {
     private void Awake() {
 		if (CompareTag("Player")) {
 			initVar.OnValueChanged += delegate (Vector4 oldv, Vector4 newv) {
+				// Initialize player and its ghosts.
 				transform.position = newv;
 				MeshRenderer renderer = transform.GetChild(0).GetComponent<MeshRenderer>();
 				renderer.material = StageNetwork.GetMaterial((int) newv.w);
@@ -21,14 +22,14 @@ public class NetworkCat : NetworkBehaviour {
 		}
 		stateVar.OnValueChanged += delegate (int oldv, int newv) {
 			if (!IsOwner) {
+				// Update state of ghosts (player or enemy).
 				cat.SetState(newv);
 			}
 		};
 		moveVar.OnValueChanged += delegate (Vector4 oldv, Vector4 newv) {
 			if (!IsOwner) {
-				Vector3 diff = newv;
-				diff -= transform.position;
-				cat.Move(diff);
+				// Update position/angle of ghosts (player or enemy).
+				cat.Move((Vector3) newv - transform.position);
 				Vector3 eulerAngles = transform.eulerAngles;
 				eulerAngles.y = newv.w;
 				transform.eulerAngles = eulerAngles;
@@ -57,13 +58,8 @@ public class NetworkCat : NetworkBehaviour {
 			gameObject.name = "Player " + OwnerClientId + " (Ghost)";
 			if (IsServer) {
 				// Sent to the owner the game rules.
-				ClientRpcParams clientRpcParams = new ClientRpcParams {
-					Send = new ClientRpcSendParams {
-						TargetClientIds = new ulong[] { OwnerClientId }
-					}
-				};
-				InitModeClientRpc(StageController.killMode, StageController.respawn, StageController.timeLimit,
-					clientRpcParams);
+				InitModeClientRpc(StageController.killMode, StageController.respawn, 
+					StageController.timeLimit, OwnerOnly());
 			}
 		}
 		MeshRenderer renderer = transform.GetChild(0).GetComponent<MeshRenderer>();
@@ -78,28 +74,51 @@ public class NetworkCat : NetworkBehaviour {
 		StageNetwork.Exit();
 	}
 
+	public ClientRpcParams OwnerOnly() {
+		return new ClientRpcParams {
+			Send = new ClientRpcSendParams {
+				TargetClientIds = new ulong[] { OwnerClientId }
+			}
+		};
+	}
+
 	// =========================================================================================
 	//	Triggers
 	// =========================================================================================
 
 	public void OnMove() {
+		// When local player or enemy moved. Update position of ghosts.
 		Vector4 newPos = new Vector4(transform.position.x, transform.position.y,
 			transform.position.z, transform.eulerAngles.y);
 		if (IsServer) {
+			// Send to other clients.
 			moveVar.Value = newPos;
 		} else {
+			// Send to server.
 			MoveServerRpc(newPos);
 		}
     }
 
 	public void OnStateChange(int i) {
+		// When local enemy or player changes its state. Update state of ghosts.
 		if (IsOwner) {
-			ChangeStateServerRpc(i);
-		}
+			if (IsServer)
+				stateVar.Value = i;
+			else
+				ChangeStateServerRpc(i);
+		} else {
+			Debug.Log("State change on ghost: " + gameObject.name + ", state " + i);
+        }
 	}
 
-    public void OnPause(bool pause) {
-		PauseServerRpc(pause);
+    public void OnPause(bool value) {
+		// When local player paused. Warn other clients.
+		if (IsServer) {
+			NetworkCat[] players = FindObjectsOfType<NetworkCat>();
+			PauseClientRpc(value);
+		} else {
+			PauseServerRpc(value);
+		}
 	}
 
 	// =========================================================================================
@@ -108,36 +127,37 @@ public class NetworkCat : NetworkBehaviour {
 
 	[ClientRpc]
 	public void InitModeClientRpc(int killMode, bool respawn, float time,
-			ClientRpcParams clientRpcParams = default) {
-		Debug.Log("Set mode: " + killMode + " " + respawn + " " + time);
+			ClientRpcParams clientRpcParams) {
+		// When player is spawned, to inform the gameplay mode.
 		StageController.killMode = killMode;
 		StageController.respawn = respawn;
 		StageController.timeLimit = time;
 	}
 
 	[ClientRpc]
-	public void DamageClientRpc(int points, Vector3 origin) {
-		if (!IsOwner)
-			return;
+	public void DamageClientRpc(int points, Vector3 origin,
+			ClientRpcParams clientRpcParams) {
+		// When server detects collision with an opponent's spit or an enemy.
 		StageController.instance.Damage(points, origin);
 	}
 
 	[ClientRpc]
-	public void EatClientRpc() {
-		if (!IsOwner)
-			return;
+	public void EatClientRpc(ClientRpcParams clientRpcParams) {
+		// When server detects collision with apple.
 		StageController.instance.EatApple();
 	}
 
 	[ClientRpc]
 	public void PauseClientRpc(bool value) {
-		if (!IsOwner)
-			return;
+		// When some player resquests pause.
+		// Broadcasted to all clients.
 		StageController.instance.SetPaused(value);
     }
 
 	[ClientRpc]
 	public void GameOverClientRpc(bool timeout) {
+		// When everybody died.
+		// Broadcasted to all clients.
 		StageController.instance.PartyGameOver(timeout);
     }
 
@@ -147,41 +167,52 @@ public class NetworkCat : NetworkBehaviour {
 
 	[ServerRpc]
 	public void InitServerRpc(Vector4 init) {
+		// This player requested initialization. Update ghosts.
 		initVar.Value = init;
 	}
 
 	[ServerRpc]
 	public void ExitServerRpc() {
+		// This player exited the scene. Delete all ghosts.
 		GetComponent<NetworkObject>().Despawn();
 		Destroy(gameObject);
 	}
 
 	[ServerRpc]
+	public void GameOverServerRpc() {
+		// This player died. Recheck if someone is still alive.
+		if (StageController.instance.gameOver)
+			StageController.instance.GameOver(false);
+	}
+
+	[ServerRpc]
 	public void MoveServerRpc(Vector4 newPos) {
+		// This player moved. Update ghost positions.
 		moveVar.Value = newPos;
 	}
 
 	[ServerRpc]
 	public void ChangeStateServerRpc(int id) {
+		// This player changed state. Update ghost positions.
 		stateVar.Value = id;
 	}
 
 	[ServerRpc]
 	public void PauseServerRpc(bool value) {
-		NetworkCat[] players = FindObjectsOfType<NetworkCat>();
-		foreach (NetworkCat player in players) {
-			player.PauseClientRpc(value);
-		}
+		// This player requested pause.
+		PauseClientRpc(value);
 	}
 
 	[ServerRpc]
 	public void RespawnServerRpc() {
+		// This player requested a respawn.
 		cat.ResetState();
 		stateVar.Value = 0;
 	}
 
 	[ServerRpc]
 	public void InstantiateServerRpc(int prefabId, Vector3 position, Quaternion rotation) {
+		// This player requested a new object.
 		StageNetwork.ServerSpawn(prefabId, OwnerClientId, position, rotation);
 	}
 

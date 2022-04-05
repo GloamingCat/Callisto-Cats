@@ -187,6 +187,8 @@ public class StageController : MonoBehaviour {
 	}
 
 	public void RespawnPlayer() {
+		if (!paused)
+			Time.timeScale = 1;
 		respawnButton.SetActive(false);
 		player.transform.position = initialPosition;
 		player.ResetState();
@@ -208,36 +210,40 @@ public class StageController : MonoBehaviour {
 	}
 
 	public void GameOver(bool timeout = false) {
-		centerText.text = timeout ? "TIMEOUT" : "YOU DEADED";
 		mainCamera.target = null;
 		gameOver = true;
-		if (StageNetwork.mode == 0) {
-			Time.timeScale = 0;
-			return;
-		} else if (StageNetwork.mode == 1) {
-			if (timeout) {
+		if (timeout) {
+			centerText.text = "TIMEOUT";
+			respawnButton.SetActive(false);
+			if (StageNetwork.mode == 0) {
+				Time.timeScale = 0;
+			} else if (StageNetwork.mode == 1) {
 				player.GetComponent<NetworkCat>().GameOverClientRpc(true);
-            } else {
-				if (respawn) {
-					respawnButton.SetActive(true);
-					return;
-				}
+			}
+		} else {
+			centerText.text = "YOU DEADED";
+			if (respawn) {
+				respawnButton.SetActive(true);
+			} else {
 				foreach (Cat cat in FindObjectsOfType<Cat>()) {
 					if (!cat.dead && cat.gameObject.CompareTag("Player")) {
 						return;
 					}
 				}
-				PartyGameOver();
-				player.GetComponent<NetworkCat>().GameOverClientRpc(false);
+				if (StageNetwork.mode == 1) {
+					player.GetComponent<NetworkCat>().GameOverClientRpc(false);
+				} else {
+					player.GetComponent<NetworkCat>().GameOverServerRpc();
+				}
 			}
-		}
+         }
 	}
 
 	public void PartyGameOver(bool timeout = false) {
 		mainCamera.target = null;
 		gameOver = true;
 		Time.timeScale = 0;
-		centerText.text = timeout ? "TIMEOUT" : "EVERYBODY DEADED"; ;
+		centerText.text = timeout ? "TIMEOUT" : "EVERYBODY DEADED";
 	}
 
 	public void Exit() {

@@ -1,4 +1,6 @@
+#if UNITY_EDITOR
 using ParrelSync;
+#endif
 using Unity.Netcode;
 using Unity.Netcode.Transports.UNET;
 using UnityEngine;
@@ -26,6 +28,7 @@ public class StageNetwork : MonoBehaviour {
         instance = this;
         networkManager = GetComponent<NetworkManager>();
         networkTransport = GetComponent<UNetTransport>();
+#if UNITY_EDITOR
         if (mode == -1) {
             if (ClonesManager.IsClone()) {
                 string customArgument = ClonesManager.GetArgument();
@@ -38,6 +41,7 @@ public class StageNetwork : MonoBehaviour {
                 mode = 1;
             }
         }
+#endif
     }
 
     private void Start() {

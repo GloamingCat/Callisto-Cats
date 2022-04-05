@@ -17,7 +17,6 @@ public class Spit : MonoBehaviour {
 		owner = StageNetwork.FindOwner(gameObject);
 		gameObject.name = "Spit (" + owner.name + ")";
 		meshRenderer.material = owner.transform.GetChild(0).GetComponent<MeshRenderer>().material;
-		Debug.Log(transform.forward);
 		GetComponent<Rigidbody>().velocity = transform.forward * speed;
 		// Server sets the time limit.
 		if (StageNetwork.mode != 2) {
@@ -43,7 +42,8 @@ public class Spit : MonoBehaviour {
 					StageController.instance.Damage(10, transform.position);
                 } else {
 					// Ghost player.
-					other.gameObject.GetComponent<NetworkCat>().DamageClientRpc(10, transform.position);
+					NetworkCat netCat = other.gameObject.GetComponent<NetworkCat>();
+					netCat.DamageClientRpc(10, transform.position, netCat.OwnerOnly());
 				}
 				Despawn();
 			}

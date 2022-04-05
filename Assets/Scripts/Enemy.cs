@@ -43,25 +43,12 @@ public class Enemy : MonoBehaviour {
 		}
 	}
 
-	protected void OnControllerColliderHit(ControllerColliderHit hit) {
-		if (!hit.gameObject.CompareTag("Player"))
+	private void OnTriggerEnter(Collider other) {
+		if (!other.gameObject.CompareTag("Player"))
 			return;
 		// Collision is always recognized by the owner of the player (using ghost of enemy).
-		if (StageNetwork.mode == 0) {
-			// Offline.
+		if (StageController.instance.IsLocalPlayer(other.gameObject))
 			StageController.instance.Damage(10, transform.position);
-		} else if (StageController.instance.IsLocalPlayer(hit.gameObject)) {
-			if (StageNetwork.mode == 1) {
-				// When local player is server.
-				StageController.instance.Damage(10, transform.position);
-			} else {
-				// When local player is client.
-				NetworkCat netPlayer = hit.gameObject.GetComponent<NetworkCat>();
-				netPlayer.DamageClientRpc(10, transform.position);
-			}
-		} else {
-			// Nothing happens when it collides with other ghosts.
-        }
 	}
 
 	// =========================================================================================

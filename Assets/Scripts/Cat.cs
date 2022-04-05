@@ -12,10 +12,14 @@ public class Cat : MonoBehaviour {
 	// Constants
 	private static readonly string[] stateAnimations = new string[] { "Idle", "Jump", "Land", "Roll", "Die", "Deaded" };
 	public static int maxLifePoints = 30;
-	public static float gravity = 0.25f;
-	public static float damageTime = 2f;
-	public float moveSpeed = 5;
-	public float jumpSpeed = 2.5f;
+	public float gravity = 15f;
+	public float damageTime = 2f;
+	public float damageSpeed = 2f;
+	public float moveSpeed = 5f;
+	public float boostSpeed = 10f;
+	public float jumpSpeed = 3f;
+	public float bigJumpSpeed = 7f;
+	public float bigJumpDelay = 0.01f;
 
 	// State
 	public int lifePoints;
@@ -31,8 +35,7 @@ public class Cat : MonoBehaviour {
 	// Big Jump
 	public Vector3 boost { get; private set; }
 	public bool bigJumping { get; private set; }
-	public float bigJumpSpeed = 6;
-	public static float bigJumpDelay = 0.01f;
+	
 
 	// Fire
 	public static int maxManaPoints = 20;
@@ -40,6 +43,7 @@ public class Cat : MonoBehaviour {
 
 	private void Awake() {
 		controller = GetComponent<CharacterController>();
+		controller.detectCollisions = false;
 		animator = GetComponent<Animator>();
 		netCat = GetComponent<NetworkCat>();
 		ResetState();
@@ -63,7 +67,7 @@ public class Cat : MonoBehaviour {
 			if (transform.position.y < 0) {
 				DieByCliff();
 			} else {
-				moveVector.y -= gravity * Time.deltaTime;
+				moveVector.y -= gravity * Time.fixedDeltaTime;
 			}
 		}
 		UpdatePlatform();
@@ -154,8 +158,8 @@ public class Cat : MonoBehaviour {
 	}
 	
 	public void SetDirection(float dx, float dz) {
-		moveVector.x = dx * moveSpeed * Time.deltaTime;
-		moveVector.z = dz * moveSpeed * Time.deltaTime;
+		moveVector.x = dx * moveSpeed;
+		moveVector.z = dz * moveSpeed;
 		transform.rotation = Quaternion.LookRotation(moveVector);
 		transform.eulerAngles = new Vector3(0, transform.eulerAngles.y, 0);
 	}
@@ -178,7 +182,7 @@ public class Cat : MonoBehaviour {
 			SetState(1);
 			if (netCat)
 				netCat.OnStateChange(1);
-			moveVector.y = jumpSpeed * Time.deltaTime;
+			moveVector.y = jumpSpeed;
 		}
 		OnRollEnd();
 	}
@@ -206,14 +210,14 @@ public class Cat : MonoBehaviour {
 		SetState(3);
 		if (netCat)
 			netCat.OnStateChange(3);
-		boost = transform.forward * Time.fixedDeltaTime * moveSpeed * 2;
+		boost = transform.forward * boostSpeed;
 		OnJumpEnd();
 	}
 
 	public void BigJump() {
 		bigJumping = true;
 		Jump();
-		moveVector.y = bigJumpSpeed * Time.fixedDeltaTime;
+		moveVector.y = bigJumpSpeed;
 	}
 
 	public void EndBigJump() {
@@ -228,7 +232,7 @@ public class Cat : MonoBehaviour {
 		if (damaging || dying || invincible)
 			return;
 		Vector3 direction = (origin - transform.position).normalized;
-		if ((direction - Vector3.down).magnitude < 0.1f) {
+		if ((direction - Vector3.down).magnitude < 0.01f) {
 			int r = Random.Range(0, 4);
 			direction.x += r >= 2 ? -1 : 1;
 			direction.z += r % 2 == 0 ? -1 : 1;
@@ -237,8 +241,8 @@ public class Cat : MonoBehaviour {
 		SetState(6);
 		if (netCat)
 			netCat.OnStateChange(6);
-		moveVector.x *= -2;
-		moveVector.z *= -2;
+		moveVector.x *= -damageSpeed;
+		moveVector.z *= -damageSpeed;
 		lifePoints = Mathf.Max(0, lifePoints - points);
 		invincible = true;
 		Invoke("EndInvincibility", damageTime);
@@ -268,8 +272,8 @@ public class Cat : MonoBehaviour {
 				Die();
 			} else if (netCat)
 				netCat.OnStateChange(0);
-		} else if (netCat)
-			netCat.OnStateChange(0);
+		}// else if (netCat)
+			//netCat.OnStateChange(0);
 		Invoke("EndBigJump", bigJumpDelay);
 	}
 
@@ -311,7 +315,7 @@ public class Cat : MonoBehaviour {
 		if (activePlatform != null) {
 			Vector3 newGlobalPlatformPoint = activePlatform.TransformPoint(activeLocalPlatformPoint);
 			Vector3 moveDistance = (newGlobalPlatformPoint - activeGlobalPlatformPoint);
-			controller.Move(moveDistance);
+			controller.Move(moveDistance * Time.fixedDeltaTime);
 
 			Quaternion newGlobalPlatformRotation = activePlatform.rotation * activeLocalPlatformRotation;
 			Quaternion rotationDiff = newGlobalPlatformRotation * Quaternion.Inverse(activeGlobalPlatformRotation);
@@ -324,7 +328,7 @@ public class Cat : MonoBehaviour {
 		}
 		activePlatform = null;
 
-		controller.Move(moveVector);
+		controller.Move(moveVector * Time.fixedDeltaTime);
 
 		if (activePlatform != null) {
 			activeGlobalPlatformPoint = transform.position;
@@ -338,15 +342,10 @@ public class Cat : MonoBehaviour {
 		}
 
 	}
-	protected void OnControllerColliderHit(ControllerColliderHit hit) {
+	private void OnControllerColliderHit(ControllerColliderHit hit) {
 		if (hit.moveDirection.y < -0.9f && hit.normal.y > 0.5f) {
 			activePlatform = hit.collider.transform;
 		}
-		if (StageController.instance.IsLocalPlayer(gameObject) && hit.gameObject.CompareTag("Enemy")) {
-			//Debug.Log("Local player collided with enemy");
-			//StageController.instance.Damage(10, transform.position);
-		}
 	}
-
 
 }

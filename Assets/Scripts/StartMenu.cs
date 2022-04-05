@@ -21,6 +21,7 @@ public class StartMenu : MonoBehaviour {
     // =========================================================================================
 
     public void PlaySingle() {
+        Time.timeScale = 1;
         StageNetwork.mode = 0;
         StageController.killMode = 2;
         StageController.timeLimit = -1;

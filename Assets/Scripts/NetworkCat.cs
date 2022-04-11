@@ -148,9 +148,9 @@ public class NetworkCat : NetworkBehaviour {
 	}
 
 	[ClientRpc]
-	public void IncreaseKillsClientRpc(ClientRpcParams clientRpcParams) {
+	public void IncreaseKillsClientRpc(int points, ClientRpcParams clientRpcParams) {
 		// When server detects collision with an opponent's spit or an enemy.
-		PlayerInterface.instance.IncreaseKills();
+		PlayerInterface.instance.IncreaseKills(points);
 	}
 
 	[ClientRpc]
@@ -199,12 +199,13 @@ public class NetworkCat : NetworkBehaviour {
 
 	[ServerRpc]
 	public void IncreaseKillsServerRpc(ulong shooterId) {
+		// When this player shot someone.
 		if (GetComponent<NetworkObject>().OwnerClientId == shooterId) {
 			// Shoot by local/host player.
-			PlayerInterface.instance.IncreaseKills();
+			PlayerInterface.instance.IncreaseKills(2);
 		} else {
 			// Shoot by ghost/remote player.
-			IncreaseKillsClientRpc(OwnerOnly(shooterId));
+			IncreaseKillsClientRpc(2, OwnerOnly(shooterId));
 		}
 	}
 

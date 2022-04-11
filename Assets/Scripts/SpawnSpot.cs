@@ -6,19 +6,15 @@ public class SpawnSpot : MonoBehaviour {
     public GameObject prefab;
     public float interval = 0;
     public float height = 20;
+    public bool mvpOnly = false;
     private GameObject instance;
 
     private void Start() {
-        if (StageManager.mode == 1) {
-            NetworkManager.Singleton.OnServerStarted += delegate {
-                Spawn();
-                transform.Translate(0, height, 0);
-            };
-        } else if (StageManager.mode == 0) {
+        if (StageManager.mode == 2 || mvpOnly && PlayerInterface.killMode == 1) {
+            Destroy(gameObject);
+        } else {
             Spawn();
             transform.Translate(0, height, 0);
-        } else {
-            Destroy(gameObject);
         }
     }
 

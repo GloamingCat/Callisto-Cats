@@ -51,11 +51,11 @@ public class Spit : MonoBehaviour {
 		if (enemy.lifePoints == 0) {
 			if (PlayerInterface.instance.IsLocalPlayer(owner)) {
 				// Shot by host/local player.
-				PlayerInterface.instance.IncreaseKills();
+				PlayerInterface.instance.IncreaseKills(1);
 			} else {
 				// Shot by ghost/remote player.
 				NetworkCat netCat = owner.GetComponent<NetworkCat>();
-				netCat.IncreaseKillsClientRpc(netCat.OwnerOnly());
+				netCat.IncreaseKillsClientRpc(1, netCat.OwnerOnly());
 			}
 		}
 	}
@@ -67,7 +67,7 @@ public class Spit : MonoBehaviour {
 			if (opponent.lifePoints == 0) {
 				// Shot by ghost/remote player.
 				NetworkCat netCat = owner.GetComponent<NetworkCat>();
-				netCat.IncreaseKillsClientRpc(netCat.OwnerOnly());
+				netCat.IncreaseKillsClientRpc(2, netCat.OwnerOnly());
 			}
 		} else {
 			// Collided with player ghost.

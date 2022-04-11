@@ -190,8 +190,8 @@ public class PlayerInterface : MonoBehaviour {
 		UpdateManaText();
 	}
 
-	public void IncreaseKills() {
-		player.killPoints++;
+	public void IncreaseKills(int points) {
+		player.killPoints += points;
 		UpdateScoreText();
     }
 
@@ -271,7 +271,7 @@ public class PlayerInterface : MonoBehaviour {
 	}
 
 	public void UpdateScoreText() {
-		scoreText.text = "Score: " + (player.killPoints * 2 - player.diePoints);
+		scoreText.text = "Score: " + (player.killPoints - player.diePoints);
 	}
 
 }

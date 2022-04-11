@@ -127,12 +127,10 @@ public class StageNetwork : MonoBehaviour {
     }
 
     public static void RespawnPlayer(NetworkCat player) {
-        if (NetworkManager.Singleton.IsClient) {
-            if (NetworkManager.Singleton.IsServer) {
-                player.stateVar.Value = 0;
-            } else {
-                player.RespawnServerRpc();
-            }
+        if (mode == 1) {
+             player.stateVar.Value = 0;
+        } else if (mode == 2) {
+            player.RespawnServerRpc();
         }
     }
 

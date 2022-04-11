@@ -75,9 +75,13 @@ public class NetworkCat : NetworkBehaviour {
 	}
 
 	public ClientRpcParams OwnerOnly() {
+		return OwnerOnly(OwnerClientId);
+	}
+
+	public ClientRpcParams OwnerOnly(ulong id) {
 		return new ClientRpcParams {
 			Send = new ClientRpcSendParams {
-				TargetClientIds = new ulong[] { OwnerClientId }
+				TargetClientIds = new ulong[] { id }
 			}
 		};
 	}
@@ -135,10 +139,18 @@ public class NetworkCat : NetworkBehaviour {
 	}
 
 	[ClientRpc]
-	public void DamageClientRpc(int points, Vector3 origin,
+	public void ShotClientRpc(int points, Vector3 origin, ulong shooterId,
 			ClientRpcParams clientRpcParams) {
+		// When server detects this client was shot by an opponent.
+		if (StageController.instance.Damage(points, origin)) {
+			IncreaseKillsServerRpc(shooterId);
+		}
+	}
+
+	[ClientRpc]
+	public void IncreaseKillsClientRpc(ClientRpcParams clientRpcParams) {
 		// When server detects collision with an opponent's spit or an enemy.
-		StageController.instance.Damage(points, origin);
+		StageController.instance.IncreaseKills();
 	}
 
 	[ClientRpc]
@@ -183,6 +195,17 @@ public class NetworkCat : NetworkBehaviour {
 		// This player died. Recheck if someone is still alive.
 		if (StageController.instance.gameOver)
 			StageController.instance.GameOver(false);
+	}
+
+	[ServerRpc]
+	public void IncreaseKillsServerRpc(ulong shooterId) {
+		if (GetComponent<NetworkObject>().OwnerClientId == shooterId) {
+			// Shoot by local/host player.
+			StageController.instance.IncreaseKills();
+		} else {
+			// Shoot by ghost/remote player.
+			IncreaseKillsClientRpc(OwnerOnly(shooterId));
+		}
 	}
 
 	[ServerRpc]

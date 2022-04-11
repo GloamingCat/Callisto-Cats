@@ -23,6 +23,7 @@ public class StageController : MonoBehaviour {
 	public TextMeshProUGUI centerText;
 	public TextMeshProUGUI lifeText;
 	public TextMeshProUGUI manaText;
+	public TextMeshProUGUI scoreText;
 	public TextMeshProUGUI netInfoText;
 	public TextMeshProUGUI countdownText;
 	public GameObject respawnButton;
@@ -55,8 +56,9 @@ public class StageController : MonoBehaviour {
 		player = obj.GetComponent<Cat>();
 		player.transform.position = initialPosition;
 		mainCamera.target = player.transform;
-		UpdateLifeText(player.lifePoints);
-		UpdateManaText(player.manaPoints);
+		UpdateLifeText();
+		UpdateManaText();
+		UpdateScoreText();
 		netInfoText.text = StageNetwork.GetNetInfo();
 	}
 
@@ -155,20 +157,21 @@ public class StageController : MonoBehaviour {
 	//	External
 	// =========================================================================================
 
-	public void Damage(int points, Vector3 origin) {
+	public bool Damage(int points, Vector3 origin) {
 		if (player.damaging || player.dying)
-			return;
+			return false;
 		player.Damage(points, origin);
 		if (damageSound != null)
 			AudioSource.PlayClipAtPoint(damageSound, transform.position);
-		UpdateLifeText(player.lifePoints);
+		UpdateLifeText();
+		return player.lifePoints == 0;
 	}
 
 	public void EatApple() {
 		player.HealLife(2);
 		if (eatSound != null)
 			AudioSource.PlayClipAtPoint(eatSound, player.transform.position);
-		UpdateLifeText(player.lifePoints);
+		UpdateLifeText();
 	}
 
 	public void GrabStar() {
@@ -176,7 +179,7 @@ public class StageController : MonoBehaviour {
 		if (starSound != null) {
 			AudioSource.PlayClipAtPoint(starSound, player.transform.position);
 		}
-		UpdateManaText(player.manaPoints);
+		UpdateManaText();
 	}
 
 	public void Shoot() {
@@ -184,16 +187,23 @@ public class StageController : MonoBehaviour {
 		StageNetwork.Spawn(0, player.transform, player.GetComponent<NetworkCat>());
 		if (spitSound != null)
 			AudioSource.PlayClipAtPoint(spitSound, player.transform.position);
-		UpdateManaText(player.manaPoints);
+		UpdateManaText();
 	}
+
+	public void IncreaseKills() {
+		player.killPoints++;
+		UpdateScoreText();
+    }
 
 	public void RespawnPlayer() {
 		if (!paused)
 			Time.timeScale = 1;
 		respawnButton.SetActive(false);
 		player.transform.position = initialPosition;
+		player.diePoints++;
 		player.ResetState();
-		ResetMenu(player.lifePoints, player.manaPoints);
+		UpdateScoreText();
+		ResetMenu();
 		mainCamera.target = player.transform;
 		StageNetwork.RespawnPlayer(player.GetComponent<NetworkCat>());
 	}
@@ -202,12 +212,12 @@ public class StageController : MonoBehaviour {
 	//	Menu
 	// =========================================================================================
 
-	public void ResetMenu(int lifePoints, int manaPoints) {
+	public void ResetMenu() {
 		paused = false;
 		gameOver = false;
 		centerText.text = "";
-		UpdateLifeText(lifePoints);
-		UpdateManaText(manaPoints);
+		UpdateLifeText();
+		UpdateManaText();
 	}
 
 	public void GameOver(bool timeout = false) {
@@ -252,12 +262,16 @@ public class StageController : MonoBehaviour {
 		StageNetwork.Exit();
     }
 
-	public void UpdateLifeText(int value) {
-		lifeText.text = "Life: " + value;
+	public void UpdateLifeText() {
+		lifeText.text = "Life: " + player.lifePoints;
 	}
 
-	public void UpdateManaText(int value) {
-		manaText.text = "Mana: " + value;
+	public void UpdateManaText() {
+		manaText.text = "Mana: " + player.lifePoints;
+	}
+
+	public void UpdateScoreText() {
+		scoreText.text = "Score: " + (player.killPoints * 2 - player.diePoints);
 	}
 
 }

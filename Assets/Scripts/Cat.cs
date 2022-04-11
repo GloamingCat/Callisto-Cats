@@ -41,6 +41,10 @@ public class Cat : MonoBehaviour {
 	public static int maxManaPoints = 20;
 	public int manaPoints;
 
+	// Score
+	public int killPoints = 0;
+	public int diePoints = 0;
+
 	private void Awake() {
 		controller = GetComponent<CharacterController>();
 		controller.detectCollisions = false;
@@ -258,6 +262,12 @@ public class Cat : MonoBehaviour {
 		}
 	}
 
+	public void EndInvincibility() {
+		invincible = false;
+		if (netCat)
+			netCat.OnStateChange(7);
+	}
+
 	// =========================================================================================
 	//	Callbacks
 	// =========================================================================================
@@ -292,12 +302,6 @@ public class Cat : MonoBehaviour {
 			StageController.instance.GameOver();
         }
 	}
-
-	public void EndInvincibility() {
-		invincible = false;
-		if (netCat)
-			netCat.OnStateChange(7);
-    }
 
 	// =========================================================================================
 	//	Platform

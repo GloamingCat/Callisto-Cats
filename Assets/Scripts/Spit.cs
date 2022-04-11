@@ -18,42 +18,63 @@ public class Spit : MonoBehaviour {
 		gameObject.name = "Spit (" + owner.name + ")";
 		meshRenderer.material = owner.transform.GetChild(0).GetComponent<MeshRenderer>().material;
 		GetComponent<Rigidbody>().velocity = transform.forward * speed;
-		// Server sets the time limit.
-		if (StageNetwork.mode != 2) {
+		if (StageNetwork.mode == 2) {
+			// Ghost
+			Destroy(this);
+		} else {
+			// Server sets the time limit.
 			Invoke("Despawn", lifeTime);
-		}
-	}
-
-	public void ProcessCollision(GameObject obj) {
-		if (obj.CompareTag("Enemy")) {
-			// Collided with an enemy.
-			obj.GetComponent<Cat>().Damage(10, transform.position);
-			Despawn();
-		} else if (obj.CompareTag("Player")) {
-			// Collided with a player.
-			if (StageController.killMode < 2 && obj != owner) {
-				Debug.Log(gameObject.name + " collided with " + obj.name);
-				// Collided with an opponent player.
-				if (StageController.instance.IsLocalPlayer(obj)) {
-					// Host player.
-					StageController.instance.Damage(10, transform.position);
-				} else {
-					// Ghost player.
-					NetworkCat netCat = obj.GetComponent<NetworkCat>();
-					netCat.DamageClientRpc(10, transform.position, netCat.OwnerOnly());
-				}
-				Despawn();
-			}
-		} else if (!obj.CompareTag("Apple") && !obj.CompareTag("Star")) {
-			// Collided with something else.
-			Despawn();
 		}
 	}
 
 	private void OnTriggerStay(Collider other) {
 		// Server only.
-		if (StageNetwork.mode != 2)
-			ProcessCollision(other.gameObject);
+		if (other.CompareTag("Enemy")) {
+			// Collided with an enemy.
+			OnEnemyCollision(other.GetComponent<Cat>());
+			Despawn();
+		} else if (other.CompareTag("Player")) {
+			// Collided with a player.
+			if (StageController.killMode < 2 && other.gameObject != owner) {
+				// Collided with an opponent player.
+				OnPlayerCollision(other.GetComponent<Cat>());
+				Despawn();
+			}
+		} else if (!other.CompareTag("Apple") && !other.CompareTag("Star")) {
+			// Collided with something else.
+			Despawn();
+		}
+	}
+
+	private void OnEnemyCollision(Cat enemy) {
+		enemy.Damage(10, transform.position);
+		if (enemy.lifePoints == 0) {
+			if (StageController.instance.IsLocalPlayer(owner)) {
+				// Shot by host/local player.
+				StageController.instance.IncreaseKills();
+			} else {
+				// Shot by ghost/remote player.
+				NetworkCat netCat = owner.GetComponent<NetworkCat>();
+				netCat.IncreaseKillsClientRpc(netCat.OwnerOnly());
+			}
+		}
+	}
+
+	private void OnPlayerCollision(Cat opponent) {
+		if (StageController.instance.IsLocalPlayer(opponent.gameObject)) {
+			// Collided with local/host player.
+			StageController.instance.Damage(10, transform.position);
+			if (opponent.lifePoints == 0) {
+				// Shot by ghost/remote player.
+				NetworkCat netCat = owner.GetComponent<NetworkCat>();
+				netCat.IncreaseKillsClientRpc(netCat.OwnerOnly());
+			}
+		} else {
+			// Collided with player ghost.
+			ulong ownerId = owner.GetComponent<NetworkObject>().OwnerClientId;
+			NetworkCat opponentCat = opponent.GetComponent<NetworkCat>();
+			opponentCat.ShotClientRpc(10, transform.position, ownerId, opponentCat.OwnerOnly());
+		}
 	}
 
 	private void Despawn() {

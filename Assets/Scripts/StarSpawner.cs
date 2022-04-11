@@ -9,8 +9,7 @@ public class StarSpawner : MonoBehaviour {
 
 	// Use this for initialization
 	void Start () {
-		GameObject terrainObj = GameObject.FindGameObjectWithTag ("Floor");
-		terrain = terrainObj.GetComponent<Terrain> ().terrainData;
+		terrain = GetComponent<Terrain>().terrainData;
 		Invoke ("CreateStar", NextStarTime);
 	}
 

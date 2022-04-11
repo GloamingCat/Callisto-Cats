@@ -3,6 +3,7 @@
 public class Apple : MonoBehaviour {
 
 	public float rotateSpeed = 20;
+
 	private void Update() {
 		transform.Rotate(0, rotateSpeed * Time.deltaTime, 0);
 	}

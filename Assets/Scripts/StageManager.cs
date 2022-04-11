@@ -6,9 +6,9 @@ using Unity.Netcode.Transports.UNET;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-public class StageNetwork : MonoBehaviour {
+public class StageManager : MonoBehaviour {
 
-    private static StageNetwork instance;
+    private static StageManager instance;
 
     // Network
     private static NetworkManager networkManager;
@@ -48,7 +48,7 @@ public class StageNetwork : MonoBehaviour {
         if (mode == 0) {
             // Offline
             GameObject obj = Instantiate(networkManager.NetworkConfig.PlayerPrefab);
-            StageController.instance.SetLocalPlayer(obj);
+            PlayerInterface.instance.SetLocalPlayer(obj);
         } else if (mode == 1) {
             // Host
             networkTransport.ServerListenPort = port;
@@ -95,7 +95,7 @@ public class StageNetwork : MonoBehaviour {
 
     public static void Exit() {
         if (mode == 0) {
-            Destroy(NetworkManager.Singleton.gameObject);
+            Destroy(instance.gameObject);
             SceneManager.LoadScene(0);
         } else if (mode == 1) {
             GameObject[] cats = GameObject.FindGameObjectsWithTag("Player");

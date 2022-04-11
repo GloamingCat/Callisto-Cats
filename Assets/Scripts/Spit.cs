@@ -14,11 +14,11 @@ public class Spit : MonoBehaviour {
 
 	private void Start () {
 		// Change color according to shooter.
-		owner = StageNetwork.FindOwner(gameObject);
+		owner = StageManager.FindOwner(gameObject);
 		gameObject.name = "Spit (" + owner.name + ")";
 		meshRenderer.material = owner.transform.GetChild(0).GetComponent<MeshRenderer>().material;
 		GetComponent<Rigidbody>().velocity = transform.forward * speed;
-		if (StageNetwork.mode == 2) {
+		if (StageManager.mode == 2) {
 			// Ghost
 			Destroy(this);
 		} else {
@@ -35,7 +35,7 @@ public class Spit : MonoBehaviour {
 			Despawn();
 		} else if (other.CompareTag("Player")) {
 			// Collided with a player.
-			if (StageController.killMode < 2 && other.gameObject != owner) {
+			if (PlayerInterface.killMode < 2 && other.gameObject != owner) {
 				// Collided with an opponent player.
 				OnPlayerCollision(other.GetComponent<Cat>());
 				Despawn();
@@ -49,9 +49,9 @@ public class Spit : MonoBehaviour {
 	private void OnEnemyCollision(Cat enemy) {
 		enemy.Damage(10, transform.position);
 		if (enemy.lifePoints == 0) {
-			if (StageController.instance.IsLocalPlayer(owner)) {
+			if (PlayerInterface.instance.IsLocalPlayer(owner)) {
 				// Shot by host/local player.
-				StageController.instance.IncreaseKills();
+				PlayerInterface.instance.IncreaseKills();
 			} else {
 				// Shot by ghost/remote player.
 				NetworkCat netCat = owner.GetComponent<NetworkCat>();
@@ -61,9 +61,9 @@ public class Spit : MonoBehaviour {
 	}
 
 	private void OnPlayerCollision(Cat opponent) {
-		if (StageController.instance.IsLocalPlayer(opponent.gameObject)) {
+		if (PlayerInterface.instance.IsLocalPlayer(opponent.gameObject)) {
 			// Collided with local/host player.
-			StageController.instance.Damage(10, transform.position);
+			PlayerInterface.instance.Damage(10, transform.position);
 			if (opponent.lifePoints == 0) {
 				// Shot by ghost/remote player.
 				NetworkCat netCat = owner.GetComponent<NetworkCat>();
@@ -79,10 +79,10 @@ public class Spit : MonoBehaviour {
 
 	private void Despawn() {
 		// Server only.
-		if (StageNetwork.mode == 0)
+		if (StageManager.mode == 0)
 			Destroy(gameObject);
 		else 
-			StageNetwork.ServerDespawn(gameObject);
+			StageManager.ServerDespawn(gameObject);
 	}
 
 }

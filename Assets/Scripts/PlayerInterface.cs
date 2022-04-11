@@ -2,9 +2,9 @@
 using TMPro;
 using UnityEngine;
 
-public class StageController : MonoBehaviour {
+public class PlayerInterface : MonoBehaviour {
 
-	public static StageController instance;
+	public static PlayerInterface instance;
 	private Cat player;
 	private CameraControl mainCamera;
 	public Vector3 initialPosition = new Vector3(17.13f, 0.642f, 25);
@@ -45,7 +45,7 @@ public class StageController : MonoBehaviour {
 		startTime = Time.time;
 		countdownText.text = "";
 		respawnButton.SetActive(false);
-		netInfoText.text = StageNetwork.GetNetInfo();
+		netInfoText.text = StageManager.GetNetInfo();
 	}
 
 	public bool IsLocalPlayer(GameObject obj) {
@@ -59,7 +59,7 @@ public class StageController : MonoBehaviour {
 		UpdateLifeText();
 		UpdateManaText();
 		UpdateScoreText();
-		netInfoText.text = StageNetwork.GetNetInfo();
+		netInfoText.text = StageManager.GetNetInfo();
 	}
 
 	// =========================================================================================
@@ -93,7 +93,7 @@ public class StageController : MonoBehaviour {
 		if (player == null)
 			return;
 		if (!gameOver && Input.GetButtonDown("Pause")) {
-			if (StageNetwork.mode == 0) {
+			if (StageManager.mode == 0) {
 				SetPaused(!paused);
 			} else {
 				player.GetComponent<NetworkCat>().OnPause(!paused);
@@ -149,7 +149,7 @@ public class StageController : MonoBehaviour {
 			centerText.text = "";
 			if (timeLimit >= 0)
 				startTime = Time.time;
-			netInfoText.text = StageNetwork.GetNetInfo();
+			netInfoText.text = StageManager.GetNetInfo();
 		}
 	}
 
@@ -184,7 +184,7 @@ public class StageController : MonoBehaviour {
 
 	public void Shoot() {
 		player.manaPoints--;
-		StageNetwork.Spawn(0, player.transform, player.GetComponent<NetworkCat>());
+		StageManager.Spawn(0, player.transform, player.GetComponent<NetworkCat>());
 		if (spitSound != null)
 			AudioSource.PlayClipAtPoint(spitSound, player.transform.position);
 		UpdateManaText();
@@ -205,7 +205,7 @@ public class StageController : MonoBehaviour {
 		UpdateScoreText();
 		ResetMenu();
 		mainCamera.target = player.transform;
-		StageNetwork.RespawnPlayer(player.GetComponent<NetworkCat>());
+		StageManager.RespawnPlayer(player.GetComponent<NetworkCat>());
 	}
 
 	// =========================================================================================
@@ -226,9 +226,9 @@ public class StageController : MonoBehaviour {
 		if (timeout) {
 			centerText.text = "TIMEOUT";
 			respawnButton.SetActive(false);
-			if (StageNetwork.mode == 0) {
+			if (StageManager.mode == 0) {
 				Time.timeScale = 0;
-			} else if (StageNetwork.mode == 1) {
+			} else if (StageManager.mode == 1) {
 				player.GetComponent<NetworkCat>().GameOverClientRpc(true);
 			}
 		} else {
@@ -241,7 +241,7 @@ public class StageController : MonoBehaviour {
 						return;
 					}
 				}
-				if (StageNetwork.mode == 1) {
+				if (StageManager.mode == 1) {
 					player.GetComponent<NetworkCat>().GameOverClientRpc(false);
 				} else {
 					player.GetComponent<NetworkCat>().GameOverServerRpc();
@@ -259,7 +259,7 @@ public class StageController : MonoBehaviour {
 
 	public void Exit() {
 		Time.timeScale = 1;
-		StageNetwork.Exit();
+		StageManager.Exit();
     }
 
 	public void UpdateLifeText() {

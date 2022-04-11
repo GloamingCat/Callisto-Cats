@@ -1,11 +1,11 @@
 ﻿using UnityEngine;
-using System.Collections;
 
-public class StarFall : MonoBehaviour {
+public class StarSpawner : MonoBehaviour {
 
 	public float interval = 10.0f;
 	public GameObject starPrefab;
-	TerrainData terrain;
+
+	private TerrainData terrain;
 
 	// Use this for initialization
 	void Start () {
@@ -13,7 +13,11 @@ public class StarFall : MonoBehaviour {
 		terrain = terrainObj.GetComponent<Terrain> ().terrainData;
 		Invoke ("CreateStar", NextStarTime);
 	}
-	
+
+	// =========================================================================================
+	//	Stars
+	// =========================================================================================
+
 	void CreateStar() {
 		Instantiate (starPrefab, NextStarPlace, starPrefab.transform.rotation);
 		Invoke ("CreateStar", NextStarTime);
@@ -33,4 +37,5 @@ public class StarFall : MonoBehaviour {
 			return new Vector3(x, y ,z);
 		}
 	}
+
 }

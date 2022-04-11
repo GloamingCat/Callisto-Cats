@@ -25,7 +25,7 @@ public class Enemy : MonoBehaviour {
 
 	private void FixedUpdate() {
 		// Server only.
-		if (StageNetwork.mode == 2)
+		if (StageManager.mode == 2)
 			return;
 		cat.UpdateMovement();
 		if (cat.damaging || cat.dying)
@@ -47,8 +47,8 @@ public class Enemy : MonoBehaviour {
 		if (!other.gameObject.CompareTag("Player"))
 			return;
 		// Collision is always recognized by the owner of the player (using ghost of enemy).
-		if (StageController.instance.IsLocalPlayer(other.gameObject))
-			StageController.instance.Damage(10, transform.position);
+		if (PlayerInterface.instance.IsLocalPlayer(other.gameObject))
+			PlayerInterface.instance.Damage(10, transform.position);
 	}
 
 	// =========================================================================================
@@ -57,10 +57,10 @@ public class Enemy : MonoBehaviour {
 
 	protected void OnDieEnd() {
 		// Server only (from animator).
-		if (StageNetwork.mode == 0) {
+		if (StageManager.mode == 0) {
 			Destroy(gameObject);
-        } else if (StageNetwork.mode == 1) {
-			StageNetwork.ServerDespawn(gameObject);
+        } else if (StageManager.mode == 1) {
+			StageManager.ServerDespawn(gameObject);
 		}
 	}
 

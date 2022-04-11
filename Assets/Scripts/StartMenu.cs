@@ -22,9 +22,9 @@ public class StartMenu : MonoBehaviour {
 
     public void PlaySingle() {
         Time.timeScale = 1;
-        StageNetwork.mode = 0;
-        StageController.killMode = 2;
-        StageController.timeLimit = -1;
+        StageManager.mode = 0;
+        PlayerInterface.killMode = 2;
+        PlayerInterface.timeLimit = -1;
         SceneManager.LoadScene(1);
     }
 
@@ -37,20 +37,20 @@ public class StartMenu : MonoBehaviour {
     // =========================================================================================
 
     public void HostRoom() {
-        StageNetwork.mode = 1;
-        StageNetwork.port = Int32.Parse(listenPortInput.text);
-        StageNetwork.ip = ipInput.text;
-        StageNetwork.material = 0;
-        StageController.killMode = modeDropdown.value;
-        StageController.timeLimit = Single.Parse(timeInput.text);
+        StageManager.mode = 1;
+        StageManager.port = Int32.Parse(listenPortInput.text);
+        StageManager.ip = ipInput.text;
+        StageManager.material = 0;
+        PlayerInterface.killMode = modeDropdown.value;
+        PlayerInterface.timeLimit = Single.Parse(timeInput.text);
         SceneManager.LoadScene(1);
     }
 
     public void JoinRoom() {
-        StageNetwork.mode = 2;
-        StageNetwork.port = Int32.Parse(portInput.text);
-        StageNetwork.ip = ipInput.text;
-        StageNetwork.material = 2 + colorDropdown.value;
+        StageManager.mode = 2;
+        StageManager.port = Int32.Parse(portInput.text);
+        StageManager.ip = ipInput.text;
+        StageManager.material = 2 + colorDropdown.value;
         SceneManager.LoadScene(1);
     }
 

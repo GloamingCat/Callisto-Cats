@@ -17,7 +17,7 @@ public class NetworkCat : NetworkBehaviour {
 				// Initialize player and its ghosts.
 				transform.position = newv;
 				MeshRenderer renderer = transform.GetChild(0).GetComponent<MeshRenderer>();
-				renderer.material = StageNetwork.GetMaterial((int) newv.w);
+				renderer.material = StageManager.GetMaterial((int) newv.w);
 			};
 		}
 		stateVar.OnValueChanged += delegate (int oldv, int newv) {
@@ -43,9 +43,9 @@ public class NetworkCat : NetworkBehaviour {
 			return;
 		if (IsOwner) {
 			// Local player.
-			StageController.instance.SetLocalPlayer(gameObject);
+			PlayerInterface.instance.SetLocalPlayer(gameObject);
 			Vector4 init = new Vector4(transform.position.x, transform.position.y,
-				transform.position.z, StageNetwork.material);
+				transform.position.z, StageManager.material);
 			if (IsServer) {
 				initVar.Value = init;
 				gameObject.name = "Player " + OwnerClientId + " (Server)";
@@ -58,20 +58,20 @@ public class NetworkCat : NetworkBehaviour {
 			gameObject.name = "Player " + OwnerClientId + " (Ghost)";
 			if (IsServer) {
 				// Sent to the owner the game rules.
-				InitModeClientRpc(StageController.killMode, StageController.respawn, 
-					StageController.timeLimit, OwnerOnly());
+				InitModeClientRpc(PlayerInterface.killMode, PlayerInterface.respawn, 
+					PlayerInterface.timeLimit, OwnerOnly());
 			}
 		}
 		MeshRenderer renderer = transform.GetChild(0).GetComponent<MeshRenderer>();
-		renderer.material = StageNetwork.GetMaterial((int)initVar.Value.w);
-		StageController.instance.SetPaused(true);
+		renderer.material = StageManager.GetMaterial((int)initVar.Value.w);
+		PlayerInterface.instance.SetPaused(true);
 	}
 
 	public override void OnNetworkDespawn() {
-		if (!StageController.instance.IsLocalPlayer(gameObject))
+		if (!PlayerInterface.instance.IsLocalPlayer(gameObject))
 			return;
-		StageNetwork.mode = 0;
-		StageNetwork.Exit();
+		StageManager.mode = 0;
+		StageManager.Exit();
 	}
 
 	public ClientRpcParams OwnerOnly() {
@@ -133,16 +133,16 @@ public class NetworkCat : NetworkBehaviour {
 	public void InitModeClientRpc(int killMode, bool respawn, float time,
 			ClientRpcParams clientRpcParams) {
 		// When player is spawned, to inform the gameplay mode.
-		StageController.killMode = killMode;
-		StageController.respawn = respawn;
-		StageController.timeLimit = time;
+		PlayerInterface.killMode = killMode;
+		PlayerInterface.respawn = respawn;
+		PlayerInterface.timeLimit = time;
 	}
 
 	[ClientRpc]
 	public void ShotClientRpc(int points, Vector3 origin, ulong shooterId,
 			ClientRpcParams clientRpcParams) {
 		// When server detects this client was shot by an opponent.
-		if (StageController.instance.Damage(points, origin)) {
+		if (PlayerInterface.instance.Damage(points, origin)) {
 			IncreaseKillsServerRpc(shooterId);
 		}
 	}
@@ -150,27 +150,27 @@ public class NetworkCat : NetworkBehaviour {
 	[ClientRpc]
 	public void IncreaseKillsClientRpc(ClientRpcParams clientRpcParams) {
 		// When server detects collision with an opponent's spit or an enemy.
-		StageController.instance.IncreaseKills();
+		PlayerInterface.instance.IncreaseKills();
 	}
 
 	[ClientRpc]
 	public void EatClientRpc(ClientRpcParams clientRpcParams) {
 		// When server detects collision with apple.
-		StageController.instance.EatApple();
+		PlayerInterface.instance.EatApple();
 	}
 
 	[ClientRpc]
 	public void PauseClientRpc(bool value) {
 		// When some player resquests pause.
 		// Broadcasted to all clients.
-		StageController.instance.SetPaused(value);
+		PlayerInterface.instance.SetPaused(value);
     }
 
 	[ClientRpc]
 	public void GameOverClientRpc(bool timeout) {
 		// When everybody died.
 		// Broadcasted to all clients.
-		StageController.instance.PartyGameOver(timeout);
+		PlayerInterface.instance.PartyGameOver(timeout);
     }
 
 	// =========================================================================================
@@ -193,15 +193,15 @@ public class NetworkCat : NetworkBehaviour {
 	[ServerRpc]
 	public void GameOverServerRpc() {
 		// This player died. Recheck if someone is still alive.
-		if (StageController.instance.gameOver)
-			StageController.instance.GameOver(false);
+		if (PlayerInterface.instance.gameOver)
+			PlayerInterface.instance.GameOver(false);
 	}
 
 	[ServerRpc]
 	public void IncreaseKillsServerRpc(ulong shooterId) {
 		if (GetComponent<NetworkObject>().OwnerClientId == shooterId) {
 			// Shoot by local/host player.
-			StageController.instance.IncreaseKills();
+			PlayerInterface.instance.IncreaseKills();
 		} else {
 			// Shoot by ghost/remote player.
 			IncreaseKillsClientRpc(OwnerOnly(shooterId));
@@ -236,7 +236,7 @@ public class NetworkCat : NetworkBehaviour {
 	[ServerRpc]
 	public void InstantiateServerRpc(int prefabId, Vector3 position, Quaternion rotation) {
 		// This player requested a new object.
-		StageNetwork.ServerSpawn(prefabId, OwnerClientId, position, rotation);
+		StageManager.ServerSpawn(prefabId, OwnerClientId, position, rotation);
 	}
 
 }

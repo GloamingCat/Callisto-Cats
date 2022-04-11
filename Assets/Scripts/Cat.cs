@@ -141,6 +141,10 @@ public class Cat : MonoBehaviour {
 		manaPoints = Mathf.Min(manaPoints + points, maxManaPoints);
 	}
 
+	public Color GetColor() {
+		return transform.GetChild(0).GetComponent<MeshRenderer>().material.color;
+	}
+
 	// =========================================================================================
 	//	Movement
 	// =========================================================================================

@@ -8,6 +8,7 @@ public class NetworkCat : NetworkBehaviour {
 	public NetworkVariable<Vector4> initVar = new NetworkVariable<Vector4>(0);
 	public NetworkVariable<int> stateVar = new NetworkVariable<int>(0);
 	public NetworkVariable<Vector4> moveVar = new NetworkVariable<Vector4>();
+	public NetworkVariable<int> scoreVar = new NetworkVariable<int>(0);
 
 	private Cat cat;
 
@@ -33,6 +34,13 @@ public class NetworkCat : NetworkBehaviour {
 				Vector3 eulerAngles = transform.eulerAngles;
 				eulerAngles.y = newv.w;
 				transform.eulerAngles = eulerAngles;
+			}
+		};
+		scoreVar.OnValueChanged += delegate (int oldv, int newv) {
+			if (!IsOwner) {
+				// Update state of ghosts (player or enemy).
+				cat.killPoints = newv;
+				cat.diePoints = 0;
 			}
 		};
 		cat = GetComponent<Cat>();
@@ -122,6 +130,15 @@ public class NetworkCat : NetworkBehaviour {
 			PauseClientRpc(value);
 		} else {
 			PauseServerRpc(value);
+		}
+	}
+
+	public void OnUpdateScore(int deaths, int kills) {
+		// When local player paused. Warn other clients.
+		if (IsServer) {
+			scoreVar.Value = kills - deaths;
+		} else {
+			UpdateScoreServerRpc(kills - deaths);
 		}
 	}
 
@@ -219,6 +236,12 @@ public class NetworkCat : NetworkBehaviour {
 	public void ChangeStateServerRpc(int id) {
 		// This player changed state. Update ghost positions.
 		stateVar.Value = id;
+	}
+
+	[ServerRpc]
+	public void UpdateScoreServerRpc(int score) {
+		// The score of this player changed. Broadcast to other clients.
+		scoreVar.Value = score;
 	}
 
 	[ServerRpc]

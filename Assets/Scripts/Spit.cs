@@ -37,7 +37,7 @@ public class Spit : MonoBehaviour {
 			// Collided with a player.
 			if (PlayerInterface.killMode < 2 && other.gameObject != owner) {
 				// Collided with an opponent player.
-				OnPlayerCollision(other.GetComponent<Cat>());
+				OnPlayerCollision(other.gameObject);
 				Despawn();
 			}
 		} else if (!other.CompareTag("Apple") && !other.CompareTag("Star")) {
@@ -60,11 +60,10 @@ public class Spit : MonoBehaviour {
 		}
 	}
 
-	private void OnPlayerCollision(Cat opponent) {
-		if (PlayerInterface.instance.IsLocalPlayer(opponent.gameObject)) {
+	private void OnPlayerCollision(GameObject opponent) {
+		if (PlayerInterface.instance.IsLocalPlayer(opponent)) {
 			// Collided with local/host player.
-			PlayerInterface.instance.Damage(10, transform.position);
-			if (opponent.lifePoints == 0) {
+			if (PlayerInterface.instance.Damage(10, transform.position)) {
 				// Shot by ghost/remote player.
 				NetworkCat netCat = owner.GetComponent<NetworkCat>();
 				netCat.IncreaseKillsClientRpc(2, netCat.OwnerOnly());

@@ -164,7 +164,15 @@ public class PlayerInterface : MonoBehaviour {
 		if (damageSound != null)
 			AudioSource.PlayClipAtPoint(damageSound, transform.position);
 		UpdateLifeText();
-		return player.lifePoints == 0;
+		if (player.lifePoints == 0) {
+			player.diePoints++;
+			UpdateScoreText();
+			if (StageManager.mode != 0) {
+				player.GetComponent<NetworkCat>().OnUpdateScore(player.diePoints, player.killPoints);
+			}
+			return true;
+        }
+		return false;
 	}
 
 	public void EatApple() {
@@ -200,9 +208,7 @@ public class PlayerInterface : MonoBehaviour {
 			Time.timeScale = 1;
 		respawnButton.SetActive(false);
 		player.transform.position = initialPosition;
-		player.diePoints++;
 		player.ResetState();
-		UpdateScoreText();
 		ResetMenu();
 		mainCamera.target = player.transform;
 		StageManager.RespawnPlayer(player.GetComponent<NetworkCat>());
@@ -255,6 +261,24 @@ public class PlayerInterface : MonoBehaviour {
 		gameOver = true;
 		Time.timeScale = 0;
 		centerText.text = timeout ? "TIMEOUT" : "EVERYBODY DEADED";
+		float bestScore = -Mathf.Infinity;
+		Cat[] cats = FindObjectsOfType<Cat>();
+		foreach (Cat cat in cats) {
+			bestScore = Mathf.Max(cat.killPoints - cat.diePoints, bestScore);
+		}
+		centerText.text += "\n\nSCORES:";
+		foreach (Cat cat in cats) {
+			if (cat.CompareTag("Enemy"))
+				continue;
+			string color = ColorUtility.ToHtmlStringRGB(cat.GetColor());
+			centerText.text += " <color=#" + color + ">";
+			int score = cat.killPoints - cat.diePoints;
+			if (score == bestScore) {
+				centerText.text += "<size=120%>" + score;
+            } else {
+				centerText.text += "<size=100%>" + score;
+			}
+		}
 	}
 
 	public void Exit() {

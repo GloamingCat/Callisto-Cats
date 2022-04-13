@@ -291,7 +291,7 @@ public class PlayerInterface : MonoBehaviour {
 	}
 
 	public void UpdateManaText() {
-		manaText.text = "Mana: " + player.lifePoints;
+		manaText.text = "Mana: " + player.manaPoints;
 	}
 
 	public void UpdateScoreText() {

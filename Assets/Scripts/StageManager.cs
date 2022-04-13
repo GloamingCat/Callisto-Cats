@@ -2,7 +2,9 @@
 using ParrelSync;
 #endif
 using Unity.Netcode;
+#if !UNITY_WEBGL
 using Unity.Netcode.Transports.UNET;
+#endif
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -12,7 +14,6 @@ public class StageManager : MonoBehaviour {
 
     // Network
     private static NetworkManager networkManager;
-    private static UNetTransport networkTransport;
 
     // Initial Menu Params (network)
     public static int mode = -1;
@@ -27,8 +28,7 @@ public class StageManager : MonoBehaviour {
     private void Awake() {
         instance = this;
         networkManager = GetComponent<NetworkManager>();
-        networkTransport = GetComponent<UNetTransport>();
-#if UNITY_EDITOR
+#if UNITY_EDITOR && !UNITY_WEBGL
         if (mode == -1) {
             if (ClonesManager.IsClone()) {
                 string customArgument = ClonesManager.GetArgument();
@@ -45,20 +45,27 @@ public class StageManager : MonoBehaviour {
     }
 
     private void Start() {
-        if (mode == 0) {
+        if (mode <= 0) {
             // Offline
+            mode = 0;
             GameObject obj = Instantiate(networkManager.NetworkConfig.PlayerPrefab);
             PlayerInterface.instance.SetLocalPlayer(obj);
-        } else if (mode == 1) {
+            return;
+        }
+#if !UNITY_WEBGL
+        UNetTransport transport = GetComponent<UNetTransport>();
+        transport.ServerListenPort = port;
+        transport.ConnectPort = port;
+        transport.ConnectAddress = ip;
+        networkManager.NetworkConfig.NetworkTransport = transport;
+        if (mode == 1) {
             // Host
-            networkTransport.ServerListenPort = port;
             networkManager.StartHost();
         } else if (mode == 2) {
             // Client
-            networkTransport.ConnectPort = port;
-            networkTransport.ConnectAddress = ip;
             networkManager.StartClient();
         }
+#endif
     }
 
     public static string GetNetInfo() {

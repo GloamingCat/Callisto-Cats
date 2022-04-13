@@ -3,6 +3,7 @@
 public class StarSpawner : MonoBehaviour {
 
 	public float interval = 10.0f;
+	public float height = 20;
 	public GameObject starPrefab;
 
 	private TerrainData terrain;
@@ -30,9 +31,9 @@ public class StarSpawner : MonoBehaviour {
 
 	Vector3 NextStarPlace {
 		get {
-			float x = Random.value * terrain.size.x;
-			float y = transform.position.y;
-			float z = Random.value * terrain.size.z;
+			float x = transform.position.x + Random.value * terrain.size.x;
+			float y = transform.position.y + height;
+			float z = transform.position.z + Random.value * terrain.size.z;
 			return new Vector3(x, y ,z);
 		}
 	}
